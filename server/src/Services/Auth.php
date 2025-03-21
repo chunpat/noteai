@@ -1,0 +1,189 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Services;
+
+use PDO;
+use App\Exceptions\BusinessException;
+use App\Constants\ErrorCode;
+
+class Auth
+{
+    private PDO $db;
+    private const VERIFICATION_CODE_EXPIRE_MINUTES = 10;
+    private const TOKEN_EXPIRE_DAYS = 30;
+
+    public function __construct(PDO $db)
+    {
+        $this->db = $db;
+    }
+
+    /**
+     * 发送验证码
+     */
+    public function sendVerificationCode(string $email): void
+    {
+        // 生成6位数字验证码
+        $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        
+        // 设置过期时间
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::VERIFICATION_CODE_EXPIRE_MINUTES . ' minutes'));
+        
+        // 保存验证码
+        $stmt = $this->db->prepare('
+            INSERT INTO verification_codes (email, code, expires_at)
+            VALUES (:email, :code, :expires_at)
+        ');
+        
+        $stmt->execute([
+            'email' => $email,
+            'code' => $code,
+            'expires_at' => $expiresAt
+        ]);
+
+        // TODO: 通过邮件发送验证码
+        // 开发环境直接打印
+        if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
+            error_log("Verification code for {$email}: {$code}");
+        }
+    }
+
+    /**
+     * 验证码登录
+     */
+    public function verifyCode(string $email, string $code): array
+    {
+        // 查找最新的未过期验证码
+        $stmt = $this->db->prepare('
+            SELECT code, expires_at 
+            FROM verification_codes 
+            WHERE email = :email 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        ');
+        
+        $stmt->execute(['email' => $email]);
+        $verification = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$verification) {
+            throw new BusinessException(ErrorCode::AUTH_VERIFICATION_CODE_NOT_FOUND);
+        }
+
+        if (strtotime($verification['expires_at']) < time()) {
+            throw new BusinessException(ErrorCode::AUTH_VERIFICATION_CODE_EXPIRED);
+        }
+
+        if ($verification['code'] !== $code) {
+            throw new BusinessException(ErrorCode::AUTH_VERIFICATION_CODE_INVALID);
+        }
+
+        // 获取或创建用户
+        $user = $this->getUserByEmail($email);
+        if (!$user) {
+            $user = $this->createUser($email);
+        }
+
+        // 生成token
+        $token = $this->generateToken($user['id']);
+
+        return [
+            'token' => $token,
+            'user' => [
+                'id' => $user['id'],
+                'email' => $user['email'],
+                'name' => $user['name'],
+                'avatar' => $user['avatar']
+            ]
+        ];
+    }
+
+    /**
+     * 退出登录
+     */
+    public function logout(string $token): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM user_tokens WHERE token = :token');
+        $stmt->execute(['token' => $token]);
+    }
+
+    /**
+     * 从令牌获取用户信息
+     */
+    public function getUserFromToken(string $token): ?array
+    {
+        $stmt = $this->db->prepare('
+            SELECT u.* 
+            FROM users u
+            JOIN user_tokens t ON u.id = t.user_id
+            WHERE t.token = :token AND t.expires_at > NOW()
+        ');
+        
+        $stmt->execute(['token' => $token]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * 通过邮箱获取用户
+     */
+    private function getUserByEmail(string $email): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM users WHERE email = :email');
+        $stmt->execute(['email' => $email]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * 创建新用户
+     */
+    private function createUser(string $email): array
+    {
+        $name = explode('@', $email)[0]; // 使用邮箱前缀作为默认用户名
+        
+        $stmt = $this->db->prepare('
+            INSERT INTO users (email, name)
+            VALUES (:email, :name)
+        ');
+        
+        $stmt->execute([
+            'email' => $email,
+            'name' => $name
+        ]);
+
+        return [
+            'id' => $this->db->lastInsertId(),
+            'email' => $email,
+            'name' => $name,
+            'avatar' => null
+        ];
+    }
+
+    /**
+     * 生成用户令牌
+     */
+    private function generateToken(int $userId): string
+    {
+        $token = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::TOKEN_EXPIRE_DAYS . ' days'));
+        
+        $stmt = $this->db->prepare('
+            INSERT INTO user_tokens (user_id, token, expires_at)
+            VALUES (:user_id, :token, :expires_at)
+        ');
+        
+        $stmt->execute([
+            'user_id' => $userId,
+            'token' => $token,
+            'expires_at' => $expiresAt
+        ]);
+
+        return $token;
+    }
+
+    /**
+     * 验证请求中的令牌
+     */
+    public function validateToken(string $token): ?array
+    {
+        return $this->getUserFromToken($token);
+    }
+}
