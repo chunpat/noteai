@@ -10,7 +10,3 @@ abstract class AbstractException extends \Exception
         parent::__construct($message, $code, $previous);
     }
 }
-
-class UnauthorizedException extends AbstractException {}
-class ForbiddenException extends AbstractException {}
-class NotFoundException extends AbstractException {}

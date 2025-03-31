@@ -1,5 +1,5 @@
 // API URL
-export const API_URL = 'http://localhost:8080/api/v1';
+export const API_URL = 'http://localhost:8028/api/v1';
 
 // Transaction Categories
 export const EXPENSE_CATEGORIES = [

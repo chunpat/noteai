@@ -1,29 +1,60 @@
-import { Alert, Platform } from 'react-native';
+import { createContext } from 'react';
 
-interface AlertButton {
-  text: string;
-  onPress?: () => void;
-  style?: 'default' | 'cancel' | 'destructive';
+export interface AlertState {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmText?: string;
+  onConfirm?: () => void;
 }
 
-export const showAlert = (
-  title: string,
-  message: string,
-  buttons: AlertButton[] = []
-): void => {
-  if (Platform.OS === 'web') {
-    // Web 平台使用浏览器原生确认框
-    if (window.confirm(`${title}\n${message}`)) {
-      // 找到非 cancel 类型的按钮并执行
-      const confirmButton = buttons.find(btn => btn.style !== 'cancel');
-      confirmButton?.onPress?.();
-    } else {
-      // 找到 cancel 类型的按钮并执行
-      const cancelButton = buttons.find(btn => btn.style === 'cancel');
-      cancelButton?.onPress?.();
-    }
-  } else {
-    // 原生平台使用 React Native Alert
-    Alert.alert(title, message, buttons);
-  }
+export interface AlertContextType {
+  alertState: AlertState;
+  showAlert: (options: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    onConfirm?: () => void;
+  }) => void;
+  hideAlert: () => void;
+}
+
+const initialState: AlertState = {
+  visible: false,
+  title: '',
+  message: '',
 };
+
+export const AlertContext = createContext<AlertContextType>({
+  alertState: initialState,
+  showAlert: () => {},
+  hideAlert: () => {},
+});
+
+// Global alert helper
+export const alert = {
+  show: (title: string, message: string) => {
+    if (globalThis.showAlert) {
+      globalThis.showAlert({ title, message });
+    }
+  },
+  confirm: (title: string, message: string, onConfirm: () => void) => {
+    if (globalThis.showAlert) {
+      globalThis.showAlert({
+        title,
+        message,
+        confirmText: '确定',
+        onConfirm,
+      });
+    }
+  },
+};
+
+declare global {
+  var showAlert: ((options: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    onConfirm?: () => void;
+  }) => void) | undefined;
+}

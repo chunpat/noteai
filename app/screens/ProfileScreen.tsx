@@ -1,7 +1,10 @@
-import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { AuthContext } from '../App';
+import { alert } from '../utils/alert';
+import authService from '../services/auth';
 
 const MENU_ITEMS = [
   { id: 1, title: '消费预算', icon: 'wallet-outline' },
@@ -14,6 +17,25 @@ const MENU_ITEMS = [
 
 const ProfileScreen = () => {
   const theme = useTheme();
+  const { signOut, user } = useContext(AuthContext);
+
+  const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    if (loading) return;
+
+    alert.confirm('提示', '确定要退出登录吗？', async () => {
+      setLoading(true);
+      try {
+        await authService.logout();
+        signOut();
+      } catch (error) {
+        alert.show('错误', '退出登录失败，请重试');
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
 
   const renderMenuItem = ({ id, title, icon }) => (
     <TouchableOpacity
@@ -33,23 +55,48 @@ const ProfileScreen = () => {
       {/* 用户信息 */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <View style={styles.avatar}>
-          <Ionicons name="person" size={40} color="#FFF" />
+          {user?.avatar ? (
+            <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+          ) : (
+            <Ionicons name="person" size={40} color="#FFF" />
+          )}
         </View>
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>用户昵称</Text>
-          <Text style={styles.userDesc}>记录美好生活</Text>
+          <Text style={styles.userName}>{user?.name || '未设置昵称'}</Text>
+          <Text style={styles.userDesc}>{user?.email}</Text>
         </View>
       </View>
 
       {/* 菜单列表 */}
       <View style={styles.menuList}>
         {MENU_ITEMS.map(renderMenuItem)}
+        
+        {/* 退出登录按钮 */}
+        <TouchableOpacity
+          style={[styles.menuItem, styles.logoutButton]}
+          onPress={handleLogout}
+          disabled={loading}
+        >
+          <View style={styles.menuIcon}>
+            <Ionicons name="log-out-outline" size={24} color="#F44336" />
+          </View>
+          <Text style={[styles.menuTitle, { color: '#F44336' }]}>{loading ? '退出中...' : '退出登录'}</Text>
+          <Ionicons name="chevron-forward" size={20} color="#F44336" />
+        </TouchableOpacity>
       </View>
+      
+      {/* 版本信息 */}
+      <Text style={styles.version}>Version 1.0.0</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
   container: {
     flex: 1,
   },
@@ -98,6 +145,16 @@ const styles = StyleSheet.create({
   menuTitle: {
     flex: 1,
     fontSize: 16,
+  },
+  logoutButton: {
+    marginTop: 20,
+  },
+  version: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 40,
+    marginBottom: 20,
   },
 });
 

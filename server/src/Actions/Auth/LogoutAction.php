@@ -30,6 +30,7 @@ class LogoutAction extends AbstractAction
         // 获取当前用户的token
         $token = str_replace('Bearer ', '', $request->getHeaderLine('Authorization'));
         
+        var_dump($token);exit;
         // 执行退出登录
         $this->auth->logout($token);
 

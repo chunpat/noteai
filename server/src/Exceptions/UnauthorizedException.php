@@ -5,14 +5,14 @@ namespace App\Exceptions;
 
 use App\Constants\ErrorCode;
 
-class BusinessException extends AbstractException
+class UnauthorizedException extends AbstractException
 {
     private int $errorCode;
 
     public function __construct(int $errorCode, string $message = "")
     {
         $this->errorCode = $errorCode;
-        parent::__construct($message ?: $errorCode);
+        parent::__construct($message ?: ErrorCode::getMessage($errorCode), $errorCode);
     }
 
     public function getErrorCode(): int

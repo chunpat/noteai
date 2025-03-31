@@ -1,71 +1,38 @@
-import React from 'react';
-import { StyleSheet } from 'react-native';
-import { Portal, Modal, Text, Button } from 'react-native-paper';
+import React, { useContext } from 'react';
+import { Portal, Dialog, Button } from 'react-native-paper';
+import { AlertContext } from '../utils/alert';
 
-interface CustomAlertProps {
-  visible: boolean;
-  title: string;
-  message: string;
-  onDismiss: () => void;
-  onConfirm?: () => void;
-  confirmText?: string;
-}
+const CustomAlert = () => {
+  const { alertState, hideAlert } = useContext(AlertContext);
+  const { visible, title, message, confirmText, onConfirm } = alertState;
 
-const CustomAlert: React.FC<CustomAlertProps> = ({
-  visible,
-  title,
-  message,
-  onDismiss,
-  onConfirm,
-  confirmText = '确定'
-}) => {
+  const handleConfirm = () => {
+    if (onConfirm) {
+      onConfirm();
+    }
+    hideAlert();
+  };
+
   return (
     <Portal>
-      <Modal
-        visible={visible}
-        onDismiss={onDismiss}
-        contentContainerStyle={styles.container}
-      >
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
-        <Button
-          mode="contained"
-          onPress={() => {
-            onDismiss();
-            onConfirm?.();
-          }}
-          style={styles.button}
-        >
-          {confirmText}
-        </Button>
-      </Modal>
+      <Dialog visible={visible} onDismiss={hideAlert}>
+        <Dialog.Title>{title}</Dialog.Title>
+        <Dialog.Content>
+          <Dialog.ScrollArea>{message}</Dialog.ScrollArea>
+        </Dialog.Content>
+        <Dialog.Actions>
+          {onConfirm ? (
+            <>
+              <Button onPress={hideAlert}>取消</Button>
+              <Button onPress={handleConfirm}>{confirmText || '确定'}</Button>
+            </>
+          ) : (
+            <Button onPress={hideAlert}>确定</Button>
+          )}
+        </Dialog.Actions>
+      </Dialog>
     </Portal>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#1E1E1E',
-    marginHorizontal: 40,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 12,
-  },
-  message: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  button: {
-    width: '100%',
-  }
-});
 
 export default CustomAlert;

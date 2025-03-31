@@ -13,7 +13,7 @@ class CorsMiddleware implements MiddlewareInterface
 {
     private array $allowedOrigins = ['*'];
     private array $allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
-    private array $allowedHeaders = ['Content-Type', 'Authorization', 'X-App-ID', 'X-Timestamp', 'X-Nonce', 'X-Signature'];
+    private array $allowedHeaders = ['Content-Type', 'Authorization', 'X-App-ID', 'X-Timestamp', 'X-Nonce', 'X-Signature', 'Accept', 'Accept-Language', 'Cache-Control', 'Pragma', 'Origin', 'Referer', 'User-Agent'];
     private int $maxAge = 3600;
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface

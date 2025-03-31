@@ -6,7 +6,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import VerifyCodeScreen from '../screens/auth/VerifyCodeScreen';
 
 // 定义认证导航参数列表类型
-type AuthStackParamList = {
+export type AuthStackParamList = {
   Login: undefined;
   VerifyCode: { email: string };
 };
@@ -23,4 +23,4 @@ const AuthNavigator = () => {
   );
 };
 
-export default AuthNavigator; 
+export default AuthNavigator;

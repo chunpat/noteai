@@ -1,279 +1,172 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  KeyboardAvoidingView, 
-  Platform,
-  ActivityIndicator
-} from 'react-native';
-import { useTheme } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
-import { authAPI, subscribeToLoading } from '../../services/api';
-import CustomAlert from '../../components/CustomAlert';
+import React, { useState, useContext, useCallback } from "react";
+import { StyleSheet, View, Text, TextInput, TouchableOpacity } from "react-native";
+import { useTheme } from "react-native-paper";
+import { Ionicons } from "@expo/vector-icons";
+import { StackScreenProps } from "@react-navigation/stack";
+import { AuthContext } from "../../App";
+import { alert } from "../../utils/alert";
+import authService from "../../services/auth";
+import type { SendCodeResponse } from "../../services/auth";
+import { AuthStackParamList } from "../../navigation/AuthNavigator";
 
-interface LoginScreenProps {
-  navigation: any; // 实际项目中应使用正确的Navigation类型
-}
+const validateEmail = (email: string) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+type Props = StackScreenProps<AuthStackParamList, "Login">;
+
+const LoginScreen = ({ navigation }: Props) => {
   const theme = useTheme();
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({
-    visible: false,
-    title: '',
-    message: '',
-    onConfirm: null as (() => void) | null,
-  });
-
-  useEffect(() => {
-    const unsubscribe = subscribeToLoading('sendCode', setIsLoading);
-    return unsubscribe;
-  }, []);
-
-  const showSuccessAlert = useCallback((message: string) => {
-    setAlertConfig({
-      visible: true,
-      title: '提示',
-      message,
-      onConfirm: () => {
-        navigation.navigate('VerifyCode', { email });
-      },
-    });
-  }, [email, navigation]);
-
-  const hideAlert = useCallback(() => {
-    setAlertConfig(prev => ({ ...prev, visible: false }));
-    if (alertConfig.onConfirm) {
-      alertConfig.onConfirm();
-    }
-  }, [alertConfig.onConfirm]);
-
-  // 验证邮箱格式
-  const validateEmail = (email: string): boolean => {
-    // 空值检查
-    if (!email.trim()) {
-      setEmailError('请输入邮箱地址');
-      return false;
-    }
-
-    // 邮箱格式检查
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setEmailError('请输入有效的邮箱地址');
-      return false;
-    }
-
-    setEmailError('');
-    return true;
-  };
-
-  // 处理邮箱输入变化
-  const handleEmailChange = (text: string): void => {
-    setEmail(text);
-    if (emailError) {
-      validateEmail(text);
-    }
-  };
-
-  // 发送验证码
-  const sendVerificationCode = async (): Promise<void> => {
-    if (!validateEmail(email)) {
+  const { signIn } = useContext(AuthContext);
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  const handleSendCode = useCallback(async () => {
+    if (!email || !validateEmail(email)) {
+      alert.show("提示", "请输入正确的邮箱地址");
       return;
     }
 
+    if (loading) return;
+
+    setLoading(true);
     try {
-      await authAPI.sendCode(email);
-      showSuccessAlert('验证码已发送，请查收');
-    } catch {
-      // 错误已由 API 服务统一处理
+      const response = await authService.sendVerificationCode(email);
+      if (response.success) {
+        alert.show("提示", response.message);
+        navigation.navigate("VerifyCode", { email });
+      } else {
+        // 显示失败消息
+        alert.show("错误", response.message);
+      }
+    } catch (error) {
+      // 如果连接到服务器失败，这里会捕获到网络错误
+      alert.show("错误", "无法连接到服务器，请检查网络连接");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [email, loading, navigation]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
-      >
-        <View style={styles.logoContainer}>
-          <View style={[styles.logoCircle, { backgroundColor: theme.colors.primary }]}>
-            <Ionicons name="wallet-outline" size={40} color="#FFF" />
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.colors.primary }]}>登录 / 注册</Text>
+        <Text style={styles.subtitle}>登录后开启你的智能记账之旅</Text>
+      </View>
+
+      <View style={styles.form}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.inputIconContainer}>
+            <Ionicons name="mail-outline" size={20} color={theme.colors.primary} />
           </View>
-          <Text style={[styles.appName, { color: theme.colors.primary }]}>NoteAI</Text>
-          <Text style={styles.appSlogan}>智能财务助手</Text>
+          
+          <TextInput
+            style={[styles.input, { color: theme.colors.onSurface }]}
+            placeholder="请输入邮箱地址"
+            placeholderTextColor="#666"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
         </View>
 
-        <View style={styles.formContainer}>
-          <Text style={[styles.title, { color: theme.colors.primary }]}>登录</Text>
-          <Text style={styles.subtitle}>请输入您的邮箱，我们将发送验证码</Text>
+        <TouchableOpacity 
+          style={[
+            styles.button,
+            { 
+              backgroundColor: validateEmail(email) ? theme.colors.primary : "#333",
+              opacity: validateEmail(email) ? 1 : 0.6,
+            },
+          ]}
+          onPress={handleSendCode}
+          disabled={!validateEmail(email) || loading}
+        >
+          <Text style={styles.buttonText}>{loading ? "发送中..." : "获取验证码"}</Text>
+        </TouchableOpacity>
+      </View>
 
-          <View style={styles.inputWrapper}>
-            <View style={[
-              styles.inputContainer, 
-              { backgroundColor: theme.colors.surface },
-              emailError ? styles.inputError : null
-            ]}>
-              <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, { color: '#FFFFFF' }]}
-                placeholder="请输入邮箱地址"
-                placeholderTextColor="#888"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={handleEmailChange}
-                onBlur={() => validateEmail(email)}
-              />
-            </View>
-            {emailError ? (
-              <Text style={styles.errorText}>{emailError}</Text>
-            ) : null}
-          </View>
-
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              { backgroundColor: theme.colors.primary },
-              isLoading && styles.buttonDisabled
-            ]}
-            onPress={sendVerificationCode}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buttonText}>发送验证码</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.termsContainer}>
-            <Text style={styles.termsText}>
-              登录即表示您同意我们的
-              <Text style={[styles.termsLink, { color: theme.colors.primary }]}> 服务条款 </Text>
-              和
-              <Text style={[styles.termsLink, { color: theme.colors.primary }]}> 隐私政策</Text>
-            </Text>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-
-      <CustomAlert
-        visible={alertConfig.visible}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        onDismiss={hideAlert}
-        onConfirm={hideAlert}
-      />
-    </SafeAreaView>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>登录即代表同意</Text>
+        <TouchableOpacity>
+          <Text style={[styles.link, { color: theme.colors.primary }]}>《用户协议》</Text>
+        </TouchableOpacity>
+        <Text style={styles.footerText}>和</Text>
+        <TouchableOpacity>
+          <Text style={[styles.link, { color: theme.colors.primary }]}>《隐私政策》</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-    justifyContent: 'center',
     padding: 20,
   },
-  logoContainer: {
-    alignItems: 'center',
+  header: {
+    marginTop: 60,
     marginBottom: 40,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  appSlogan: {
-    fontSize: 16,
-    color: '#888',
-  },
-  formContainer: {
-    width: '100%',
-  },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: "bold",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 24,
+    fontSize: 16,
+    color: "#666",
   },
-  inputWrapper: {
+  form: {
     marginBottom: 20,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E1E1E',
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 12,
+    marginBottom: 20,
+    overflow: "hidden",
+  },
+  inputIconContainer: {
     paddingHorizontal: 16,
-  },
-  inputError: {
-    borderWidth: 1,
-    borderColor: '#FF4444',
-  },
-  inputIcon: {
-    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
   input: {
     flex: 1,
     height: 50,
-    color: '#FFF',
     fontSize: 16,
-  },
-  errorText: {
-    color: '#FF4444',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
+    paddingRight: 16,
   },
   button: {
     height: 50,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
+    justifyContent: "center",
+    alignItems: "center",
   },
   buttonText: {
-    color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    color: "#FFF",
+    fontWeight: "bold",
   },
-  termsContainer: {
-    alignItems: 'center',
-    marginTop: 16,
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    position: "absolute",
+    bottom: 40,
+    left: 20,
+    right: 20,
   },
-  termsText: {
-    fontSize: 12,
-    color: '#888',
-    textAlign: 'center',
+  footerText: {
+    fontSize: 14,
+    color: "#666",
   },
-  termsLink: {
-    fontWeight: 'bold',
-  }
+  link: {
+    fontSize: 14,
+  },
 });
 
 export default LoginScreen;

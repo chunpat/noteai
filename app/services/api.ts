@@ -11,7 +11,7 @@ interface ApiResponse<T = any> {
 }
 
 // 错误响应类型
-interface ApiError {
+export interface ApiError {
   message: string;
   code: number;
   data?: any;
@@ -125,7 +125,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const apiResponse = response.data;
-    
+    console.log(apiResponse)
     if (apiResponse.error_code !== 0) {
       const errorMessage = apiResponse.error_msg || ERROR_MESSAGES[apiResponse.error_code] || '请求失败';
       
@@ -146,41 +146,68 @@ api.interceptors.response.use(
   async (error) => {
     let errorMessage = '请求失败';
     let errorCode = -1;
-    
+    console.log('API Error:', error);
     if (error.response) {
       const { status, data } = error.response;
       
-      if (status === 401) {
-        try {
-          // 清除所有认证相关的存储数据
-          await AsyncStorage.multiRemove(['userToken', 'userData']);
-          // 延迟一下再抛出错误，确保存储清除完成
-          await new Promise(resolve => setTimeout(resolve, 100));
-          errorMessage = '未授权或登录已过期';
-          errorCode = 1002;
-        } catch (e) {
-          console.error('Failed to clear auth data:', e);
-          // 即使清除存储失败，也继续处理401错误
-          errorMessage = '未授权或登录已过期';
-          errorCode = 1002;
-        }
-      } else if (status === 500) {
-        errorMessage = '服务器内部错误，请稍后重试';
-        errorCode = 1000;
-      } else if (data?.error_msg) {
-        errorMessage = data.error_msg || ERROR_MESSAGES[data.error_code] || '请求失败';
-        errorCode = data.error_code || status;
+      switch (status) {
+        case 400:
+          // 处理验证错误或者请求参数错误
+          errorMessage = data.error_msg || '请求参数错误';
+          errorCode = data.error_code || 1001;
+          // 可以在这里处理具体的验证错误
+          if (data.errors) {
+            // 如果后端返回具体的字段验证错误
+            const validationErrors = Object.values(data.errors).flat();
+            errorMessage = validationErrors.join('\n');
+          }
+          break;
+
+        case 401:
+          try {
+            await AsyncStorage.multiRemove(['userToken', 'userData']);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            errorMessage = '未授权或登录已过期';
+            errorCode = 1002;
+          } catch (e) {
+            console.error('Failed to clear auth data:', e);
+            errorMessage = '未授权或登录已过期';
+            errorCode = 1002;
+          }
+          break;
+
+        case 500:
+          errorMessage = '服务器内部错误，请稍后重试';
+          errorCode = 1000;
+          break;
+
+        default:
+          if (data?.error_msg) {
+            errorMessage = data.error_msg;
+            errorCode = data.error_code || status;
+          }
       }
     } else if (error.request) {
+      console.log(error);
+      console.log('Request error:', error.request);
       errorMessage = '网络错误，请检查网络连接';
+      errorCode = -1;
     } else {
       errorMessage = error.message || '请求失败';
+      errorCode = -1;
     }
     
-    Alert.alert('错误提示', errorMessage);
+    // 可以根据需要决定是否显示错误提示
+    if (!isSilentError(errorCode)) {
+      Alert.alert('错误提示', errorMessage);
+    }
+
+    // 抛出统一的错误对象
     throw {
       message: errorMessage,
-      code: errorCode
+      code: errorCode,
+      data: error.response?.data,
+      errors: error.response?.data?.errors // 包含具体的验证错误信息
     } as ApiError;
   }
 );

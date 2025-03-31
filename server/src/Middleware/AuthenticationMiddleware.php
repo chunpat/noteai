@@ -27,12 +27,12 @@ class AuthenticationMiddleware implements MiddlewareInterface
         $token = str_replace('Bearer ', '', $request->getHeaderLine('Authorization'));
         
         if (empty($token)) {
-            throw new UnauthorizedException('请先登录', ErrorCode::UNAUTHORIZED);
+            throw new UnauthorizedException(ErrorCode::UNAUTHORIZED);
         }
 
         $user = $this->auth->validateToken($token);
         if (!$user) {
-            throw new UnauthorizedException('登录已过期，请重新登录', ErrorCode::UNAUTHORIZED);
+            throw new UnauthorizedException(ErrorCode::UNAUTHORIZED);
         }
 
         // 将用户信息添加到请求属性中

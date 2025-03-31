@@ -1,128 +1,138 @@
-import React, { useState, useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import React, { useState, useEffect, createContext, useCallback } from 'react';
+import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { Provider as PaperProvider, DefaultTheme, MD3DarkTheme } from 'react-native-paper';
-import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
+import { Provider as PaperProvider, MD3DarkTheme } from 'react-native-paper';
 import RootNavigator from './navigation/RootNavigator';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authAPI } from './services/api';
+import CustomAlert from './components/CustomAlert';
+import { AlertContext, AlertState } from './utils/alert';
+import authService, { UserData } from './services/auth';
 
-// 合并 React Navigation 和 React Native Paper 的主题
-const CombinedDefaultTheme = {
-  ...NavigationDefaultTheme,
-  ...DefaultTheme,
-  colors: {
-    ...NavigationDefaultTheme.colors,
-    ...DefaultTheme.colors,
-    primary: '#6200EE',
-    accent: '#03DAC6',
-  },
-};
-
-const CombinedDarkTheme = {
-  ...NavigationDarkTheme,
+// 自定义主题
+const theme = {
   ...MD3DarkTheme,
   colors: {
-    ...NavigationDarkTheme.colors,
     ...MD3DarkTheme.colors,
-    primary: '#BB86FC',
-    accent: '#03DAC6',
+    primary: '#6200EE',
     background: '#121212',
     surface: '#1E1E1E',
-    text: '#FFFFFF',
-    card: '#1E1E1E',
+    error: '#CF6679',
   },
 };
 
-// 创建认证上下文
-export const AuthContext = React.createContext({
-  signIn: async (token: string) => {},
-  signOut: async () => {},
+// 认证上下文
+export interface AuthContextType {
+  isSignedIn: boolean;
+  user: UserData | null;
+  signIn: (token: string, userData: UserData) => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+const initialAuthContext: AuthContextType = {
   isSignedIn: false,
-});
+  user: null,
+  signIn: async () => {},
+  signOut: async () => {},
+};
+
+export const AuthContext = createContext<AuthContextType>(initialAuthContext);
 
 export default function App() {
-  // 使用深色主题
-  const theme = CombinedDarkTheme;
-  
-  // 添加用户令牌状态，默认为 null
-  const [userToken, setUserToken] = useState<string | null>(null);
-  // 默认未登录状态
+  const [isLoading, setIsLoading] = useState(true);
   const [isSignedIn, setIsSignedIn] = useState(false);
-  
-  // 初始化时检查用户是否已登录
-  useEffect(() => {
-    const bootstrapAsync = async () => {
-      try {
-        // 从AsyncStorage获取用户令牌
-        const token = await AsyncStorage.getItem('userToken');
-        
-        // 这里可以添加令牌有效性验证逻辑
-        // 例如检查令牌是否过期，或者向后端验证令牌
-        
-        // 恢复之前的登录状态
-        setUserToken(token);
-        setIsSignedIn(!!token);
-      } catch (e) {
-        console.error('Failed to load auth token', e);
-      }
-    };
+  const [user, setUser] = useState<UserData | null>(null);
 
-    bootstrapAsync();
+  // Alert state
+  const [alertState, setAlertState] = useState<AlertState>({
+    visible: false,
+    title: '',
+    message: '',
+  });
+
+  const checkAuthStatus = useCallback(async () => {
+    try {
+      const authData = await authService.getStoredAuthData();
+      if (authData?.token && authData?.user) {
+        setIsSignedIn(true);
+        setUser(authData.user);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // 认证方法
-  const authContext = React.useMemo(() => ({
-    signIn: async (token: string) => {
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
+
+  useEffect(() => {
+    globalThis.showAlert = (options) => {
+      setAlertState({
+        ...options,
+        visible: true,
+      });
+    };
+
+    return () => {
+      globalThis.showAlert = undefined;
+    };
+  }, []);
+
+  const authContext: AuthContextType = {
+    isSignedIn,
+    user,
+    signIn: async (token, userData) => {
       try {
-        // 存储用户令牌
-        await AsyncStorage.setItem('userToken', token);
-        // 更新状态以触发重新渲染
-        setUserToken(token);
+        await authService.storeAuthData(token, userData);
         setIsSignedIn(true);
-      } catch (e) {
-        console.error('Failed to save auth token', e);
-        throw e; // 抛出错误以便上层组件处理
+        setUser(userData);
+      } catch (error) {
+        console.error('Failed to store auth data:', error);
       }
     },
     signOut: async () => {
       try {
-        console.log('AuthContext: Starting logout process');
-        
-        // 调用后端退出登录接口
-        await authAPI.logout();
-        console.log('AuthContext: API logout successful');
-        
-        // 清除本地存储的数据
-        await AsyncStorage.multiRemove([
-          'userToken',
-          'userData',
-        ]);
-        console.log('AuthContext: Local storage cleared');
-        
-        // 更新状态
-        setUserToken(null);
+        await authService.clearAuthData();
         setIsSignedIn(false);
-        console.log('AuthContext: State updated');
-      } catch (e) {
-        console.error('AuthContext: Failed to sign out:', e);
-        throw e; // 重新抛出错误以便上层组件处理
+        setUser(null);
+      } catch (error) {
+        console.error('Failed to clear auth data:', error);
       }
     },
-    isSignedIn,
-  }), [isSignedIn]);
+  };
+
+  const alertContext = {
+    alertState,
+    showAlert: (options: any) => {
+      setAlertState({
+        ...options,
+        visible: true,
+      });
+    },
+    hideAlert: () => {
+      setAlertState(prev => ({
+        ...prev,
+        visible: false,
+      }));
+    },
+  };
+
+  if (isLoading) {
+    return null; // 或者显示加载指示器
+  }
 
   return (
     <AuthContext.Provider value={authContext}>
-      <SafeAreaProvider>
+      <AlertContext.Provider value={alertContext}>
         <PaperProvider theme={theme}>
-          <NavigationContainer theme={theme}>
-            <StatusBar style="light" />
+          <NavigationContainer>
+            <StatusBar barStyle="light-content" />
             <RootNavigator />
+            <CustomAlert />
           </NavigationContainer>
         </PaperProvider>
-      </SafeAreaProvider>
+      </AlertContext.Provider>
     </AuthContext.Provider>
   );
 }

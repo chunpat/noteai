@@ -16,7 +16,7 @@ return function (App $app) {
 
     // 中间件注册顺序很重要：先添加的最后执行（最外层）
     $middlewares = [
-        // API日志记录（最内层）
+        // API日志记录
         ApiLoggerMiddleware::class,
         
         // 内容长度处理
@@ -25,14 +25,14 @@ return function (App $app) {
         // 内容长度处理
         ApiConfigMiddleware::class,
         
-        // // 认证中间件
-        // AuthenticationMiddleware::class,
+        // 认证中间件
+        AuthenticationMiddleware::class,
         
-        // CORS处理
-        CorsMiddleware::class,
+        // 错误处理
+        ErrorHandlerMiddleware::class,
         
-        // 错误处理（最外层，必须最后注册）
-        ErrorHandlerMiddleware::class
+        // CORS处理（最外层，应该最先执行）
+        CorsMiddleware::class
     ];
 
     // Body解析中间件 - 最内层，让其他中间件可以访问解析后的请求体

@@ -43,37 +43,17 @@ class ErrorHandlerMiddleware implements MiddlewareInterface
             ];
 
             // 处理业务异常（客户端错误）
-            $statusCode = 400;
+            $statusCode = 200;
             $errorCode = $e->getCode();
             $errorMessage = $e->getMessage();
 
-            if ($e instanceof Throwable) {
+            if ($e instanceof \Error) {
                 // 根据异常类型确定错误级别和响应
                 $statusCode = 500;
                 $errorCode = ErrorCode::SERVER_ERROR;
                 $errorMessage = 'Internal Server Error';
                 $this->logService->logError($e, $context);
             } 
-            elseif ($e instanceof BusinessException) {
-                // 客户端错误使用 info 级别记录
-                $this->logService->getLogger()->info($errorMessage, array_merge([
-                    'exception' => get_class($e),
-                    'code' => $errorCode,
-                ], $context));
-            }
-            // 处理404错误
-            elseif ($e instanceof HttpNotFoundException) {
-                $statusCode = 404;
-                $errorCode = ErrorCode::NOT_FOUND;
-                $errorMessage = '请求的资源不存在';
-                // 404错误使用 info 级别记录
-                $this->logService->getLogger()->info($errorMessage, $context);
-            }
-            // 处理其他服务器错误
-            else {
-                // 服务器错误使用 error 级别记录
-                $this->logService->logError($e, $context);
-            }
 
             // 创建错误响应
             $response = $this->responseFactory->createResponse($statusCode);
@@ -82,6 +62,7 @@ class ErrorHandlerMiddleware implements MiddlewareInterface
             $error = [
                 'error_code' => $errorCode,
                 'error_msg' => $errorMessage,
+                'data' => [],
             ];
             
             // 在开发环境下显示详细错误信息

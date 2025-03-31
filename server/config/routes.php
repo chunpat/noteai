@@ -1,30 +1,57 @@
 <?php
 declare(strict_types=1);
 
+use App\Actions\Auth\LogoutAction;
+use App\Actions\Auth\SendCodeAction;
+use App\Actions\Auth\VerifyCodeAction;
+use App\Actions\Category\CreateCategoryAction;
+use App\Actions\Category\DeleteCategoryAction;
+use App\Actions\Category\ListCategoryAction;
+use App\Actions\Category\UpdateCategoryAction;
+use App\Actions\Example\HelloWorldAction;
+use App\Actions\Transaction\CreateTransactionAction;
+use App\Actions\Transaction\DeleteTransactionAction;
+use App\Actions\Transaction\ListTransactionAction;
+use App\Actions\Transaction\UpdateTransactionAction;
+use App\Actions\User\ProfileAction;
 use Slim\App;
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
+use Slim\Interfaces\RouteCollectorProxyInterface as Group;
 
 return function (App $app) {
     // Health check endpoint
-    $app->get('/health', function (Request $request, Response $response) {
+    $app->get('/health', function ($request, $response) {
         $response->getBody()->write(json_encode(['status' => 'healthy']));
         return $response->withHeader('Content-Type', 'application/json');
     });
 
-    // API routes group
-    $app->group('/api/v1', function ($group) {
-        // Auth routes (public)
-        $group->post('/auth/send-code', \App\Actions\Auth\SendCodeAction::class);
-        $group->post('/auth/verify-code', \App\Actions\Auth\VerifyCodeAction::class);
+    // Public API group
+    $app->group('/api/v1', function (Group $group) {
+        // Auth routes
+        $group->post('/auth/send-code', SendCodeAction::class);
+        $group->post('/auth/verify-code', VerifyCodeAction::class);
         
-        // Protected routes (require authentication)
-        $group->group('', function ($group) {
-            // Auth
-            $group->post('/auth/logout', \App\Actions\Auth\LogoutAction::class);
-            
-            // User
-            $group->get('/user/profile', \App\Actions\User\ProfileAction::class);
-        })->add(\App\Middleware\AuthenticationMiddleware::class);
+        // Example route
+        $group->get('/hello', HelloWorldAction::class);
+    });
+
+    // Protected API group (requires authentication)
+    $app->group('/api/v1', function (Group $group) {
+        // Auth routes
+        $group->post('/auth/logout', LogoutAction::class);
+
+        // User routes
+        $group->get('/user/profile', ProfileAction::class);
+
+        // Category routes
+        $group->get('/categories', ListCategoryAction::class);
+        $group->post('/categories', CreateCategoryAction::class);
+        $group->put('/categories/{id}', UpdateCategoryAction::class);
+        $group->delete('/categories/{id}', DeleteCategoryAction::class);
+
+        // Transaction routes
+        $group->get('/transactions', ListTransactionAction::class);
+        $group->post('/transactions', CreateTransactionAction::class);
+        $group->put('/transactions/{id}', UpdateTransactionAction::class);
+        $group->delete('/transactions/{id}', DeleteTransactionAction::class);
     });
 };
