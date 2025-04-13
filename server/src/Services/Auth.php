@@ -122,6 +122,14 @@ class Auth
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
+    public function getUser(): ?array
+    {
+        
+        
+        $stmt->execute(['token' => $token]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
     /**
      * 通过邮箱获取用户
      */

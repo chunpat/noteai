@@ -18,6 +18,10 @@ $container = $containerBuilder->build();
 // Create app
 $app = Bridge::create($container);
 
+// Initialize database
+$container->get(\Illuminate\Database\Capsule\Manager::class);
+
+
 // Register middleware
 $middleware = require __DIR__ . '/../config/middleware.php';
 $middleware($app);

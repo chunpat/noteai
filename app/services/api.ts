@@ -1,6 +1,11 @@
 import axios, { AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+// Use browser alert for web, React Native Alert for mobile
+const showAlert = (title: string, message: string) => {
+  if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+    window.alert(`${title}\n${message}`);
+  }
+};
 import { API_URL } from '../utils/constants';
 
 // API响应类型定义
@@ -104,10 +109,23 @@ export const getLoadingState = (key: string): boolean => loadingState[key] || fa
 const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
-  },
+    'Accept': 'application/json'
+  }
 });
+
+// 添加调试日志
+api.interceptors.request.use(request => {
+  console.log('Starting Request:', request)
+  return request
+})
+
+api.interceptors.response.use(response => {
+  console.log('Response:', response)
+  return response
+})
 
 // Add request interceptor to add auth token
 api.interceptors.request.use(
@@ -123,15 +141,54 @@ api.interceptors.request.use(
 
 // Add response interceptor to handle errors
 api.interceptors.response.use(
-  (response: AxiosResponse<ApiResponse>) => {
+  (response) => {
+    // 如果是调试输出，直接显示原始内容
+    const contentType = response.headers['content-type'] || '';
+    if (contentType.includes('text/plain')) {
+      console.log('Debug output:', response.data);
+      return response;
+    }
+    
+    // 其余部分保持不变
+    // 打印原始响应数据,用于调试
+    console.log('Raw response:', response.data);
+    
+    // 处理空响应或非标准格式的响应
+    if (!response.data || typeof response.data !== 'object') {
+      console.log('Non-standard response:', response.data);
+      const message = '服务器响应格式异常，请稍后重试';
+        showAlert('错误提示', message);
+      throw {
+        message,
+        code: -2,
+        data: response.data,
+        rawResponse: response // 保存原始响应用于调试
+      } as ApiError;
+    }
+    
     const apiResponse = response.data;
-    console.log(apiResponse)
+    
+    // 检查响应是否符合标准格式
+    if (!('error_code' in apiResponse) || !('error_msg' in apiResponse)) {
+      console.log('Invalid response format:', apiResponse);
+      const message = '接口请求异常，请稍后重试';
+      showAlert('错误提示', message);
+      throw {
+        message,
+        code: -3,
+        data: apiResponse,
+        rawResponse: response
+      } as ApiError;
+    }
+
+    console.log('apiResponse:', apiResponse);
+    
     if (apiResponse.error_code !== 0) {
       const errorMessage = apiResponse.error_msg || ERROR_MESSAGES[apiResponse.error_code] || '请求失败';
       
       // 特定错误码无需显示提示
       if (!isSilentError(apiResponse.error_code)) {
-        Alert.alert('错误提示', errorMessage);
+        showAlert('错误提示', errorMessage);
       }
       
       throw {
@@ -146,8 +203,15 @@ api.interceptors.response.use(
   async (error) => {
     let errorMessage = '请求失败';
     let errorCode = -1;
-    console.log('API Error:', error);
-    if (error.response) {
+    
+    // 处理200状态码但响应异常的情况
+    if (error.response?.status === 200) {
+      console.log('Error with 200 status:', error.response.data);
+      errorMessage = '服务器响应异常';
+      errorCode = -2;
+      // 保存原始响应数据
+      error.rawResponse = error.response;
+    } else if (error.response) {
       const { status, data } = error.response;
       
       switch (status) {
@@ -199,7 +263,7 @@ api.interceptors.response.use(
     
     // 可以根据需要决定是否显示错误提示
     if (!isSilentError(errorCode)) {
-      Alert.alert('错误提示', errorMessage);
+      showAlert('错误提示', errorMessage);
     }
 
     // 抛出统一的错误对象
@@ -212,15 +276,70 @@ api.interceptors.response.use(
   }
 );
 
-// Helper function to wrap API calls with loading state
+// Helper type for data validation
+type ValidateFunction<T> = (data: any) => data is T;
+
+// Helper function to wrap API calls with loading state and data validation
 export async function withLoading<T>(
-  key: string, 
-  apiCall: ApiRequest<T>
+  key: string,
+  apiCall: ApiRequest<T>,
+  validate?: ValidateFunction<T>
 ): Promise<T> {
   setLoading(key, true);
   try {
     const response = await apiCall(api);
+    
+    // Handle plain text responses
+    if (response.headers['content-type']?.includes('text/plain')) {
+      return response.data as any;
+    }
+
+    // Handle non-standard responses with validation
+    if (validate && (response.config as any)._nonStandardResponse) {
+      console.log('Handling non-standard response with validation');
+      const rawData = response.data;
+      
+      // Handle direct data
+      if (Array.isArray(rawData)) {
+        const validData = rawData.filter(validate);
+        console.log(`Filtered ${validData.length} valid items from ${rawData.length} items`);
+        return validData as any;
+      }
+
+      // Handle nested data
+      if (rawData && typeof rawData === 'object' && Array.isArray(rawData.data)) {
+        const validData = rawData.data.filter(validate);
+        console.log(`Filtered ${validData.length} valid items from ${rawData.data.length} items`);
+        return validData as any;
+      }
+
+      console.log('Invalid data format:', rawData);
+      return (Array.isArray(rawData) ? [] : null) as any;
+    }
+
     return response.data.data as T;
+  } catch (error: any) {
+    // Handle API errors with validation support
+    if ((error.code === -2 || error.code === -3) && validate && error.rawResponse?.data) {
+      console.log('Handling error response with validation');
+      const rawData = error.rawResponse.data;
+      
+      // Apply the same validation logic for error cases
+      if (Array.isArray(rawData)) {
+        const validData = rawData.filter(validate);
+        console.log(`Filtered ${validData.length} valid items from error response`);
+        return validData as any;
+      }
+
+      if (rawData && typeof rawData === 'object' && Array.isArray(rawData.data)) {
+        const validData = rawData.data.filter(validate);
+        console.log(`Filtered ${validData.length} valid items from error response`);
+        return validData as any;
+      }
+
+      return (Array.isArray(rawData) ? [] : null) as any;
+    }
+    throw error;
   } finally {
     setLoading(key, false);
   }

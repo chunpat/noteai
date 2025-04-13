@@ -1,72 +1,74 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
+import { addTransaction } from '../store/transactionsSlice';
+import { fetchCategories } from '../store/categorySlice';
+import type { TransactionRequest } from '../types/transaction';
+import type { Category } from '../types/category';
+import type { AppDispatch, RootState } from '../store';
 
-type IconName = keyof typeof Ionicons.glyphMap;
+const DEFAULT_CATEGORY_COLOR = {
+  expense: '#F44336',
+  income: '#4CAF50'
+};
 
-interface Category {
-  id: number;
-  name: string;
-  icon: IconName;
-  color: string;
-}
-
-// 支出类别
-const EXPENSE_CATEGORIES: Category[] = [
-  { id: 1, name: '餐饮', icon: 'restaurant-outline', color: '#FF9800' },
-  { id: 2, name: '交通', icon: 'car-outline', color: '#2196F3' },
-  { id: 3, name: '购物', icon: 'cart-outline', color: '#E91E63' },
-  { id: 4, name: '娱乐', icon: 'game-controller-outline', color: '#9C27B0' },
-  { id: 5, name: '居家', icon: 'home-outline', color: '#4CAF50' },
-  { id: 6, name: '通讯', icon: 'phone-portrait-outline', color: '#00BCD4' },
-  { id: 7, name: '医疗', icon: 'medical-outline', color: '#F44336' },
-  { id: 8, name: '其他', icon: 'apps-outline', color: '#607D8B' },
-];
-
-// 收入类别
-const INCOME_CATEGORIES: Category[] = [
-  { id: 1, name: '工资', icon: 'cash-outline', color: '#4CAF50' },
-  { id: 2, name: '兼职', icon: 'briefcase-outline', color: '#8BC34A' },
-  { id: 3, name: '理财', icon: 'trending-up', color: '#CDDC39' },
-  { id: 4, name: '其他', icon: 'apps-outline', color: '#607D8B' },
-];
-
-interface Transaction {
-  type: 'expense' | 'income';
-  amount: number;
-  category: string;
-  icon: IconName;
-  color: string;
-  description: string;
-  date: string;
-}
-
-const AddTransactionScreen = ({ navigation }) => {
+const AddTransactionScreen = ({ navigation }: any) => {
+  const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [note, setNote] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const { items: categories, status: categoryStatus } = useSelector((state: RootState) => state.categories);
+  const filteredCategories = categories.filter(cat => cat.type === type);
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    if (categoryStatus === 'idle') {
+      console.log('Dispatching fetchCategories...');
+      dispatch(fetchCategories());
+    }
+    console.log('Categories from store:', categories);
+    console.log('Category status:', categoryStatus);
+    console.log('Current type:', type);
+  }, [dispatch, categoryStatus]);
+
+  useEffect(() => {
+    console.log('Filtered categories for type', type, ':', filteredCategories);
+  }, [type, filteredCategories]);
+
+  useEffect(() => {
+    if (filteredCategories.length > 0 && !selectedCategory) {
+      setSelectedCategory(filteredCategories[0]);
+    }
+  }, [filteredCategories, selectedCategory]);
+
+  const handleSubmit = async () => {
     if (!amount || !selectedCategory) return;
     
-    const transaction: Transaction = {
-      type,
-      amount: type === 'expense' ? -Number(amount) : Number(amount),
-      category: selectedCategory.name,
-      icon: selectedCategory.icon,
-      color: selectedCategory.color,
-      description: note || selectedCategory.name,
-      date: new Date().toISOString(),
-    };
-    
-    // TODO: Add transaction to store/database
-    console.log('New transaction:', transaction);
-    navigation.goBack();
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const transaction: TransactionRequest = {
+        category_id: selectedCategory.id,
+        amount: Number(amount),
+        type: type,
+        date: new Date().toISOString(),
+        note: note || undefined
+      };
+      
+      await dispatch(addTransaction(transaction)).unwrap();
+      navigation.goBack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '添加交易失败');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -88,7 +90,10 @@ const AddTransactionScreen = ({ navigation }) => {
               styles.typeButton,
               type === 'expense' && { backgroundColor: '#F4433620' }
             ]}
-            onPress={() => setType('expense')}
+            onPress={() => {
+              setType('expense');
+              setSelectedCategory(null);
+            }}
           >
             <Text style={[
               styles.typeButtonText,
@@ -100,7 +105,10 @@ const AddTransactionScreen = ({ navigation }) => {
               styles.typeButton,
               type === 'income' && { backgroundColor: '#4CAF5020' }
             ]}
-            onPress={() => setType('income')}
+            onPress={() => {
+              setType('income');
+              setSelectedCategory(null);
+            }}
           >
             <Text style={[
               styles.typeButtonText,
@@ -129,29 +137,40 @@ const AddTransactionScreen = ({ navigation }) => {
       <Text style={styles.sectionTitle}>选择类别</Text>
       <ScrollView 
         style={styles.categoryContainer}
-        contentContainerStyle={styles.categoryContent}
+        contentContainerStyle={[
+          styles.categoryContent,
+          categoryStatus === 'loading' && styles.categoryContentLoading
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {categories.map(category => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryItem,
-              selectedCategory?.id === category.id && { backgroundColor: `${category.color}20` }
-            ]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <View style={[styles.categoryIcon, { backgroundColor: `${category.color}33` }]}>
-              <Ionicons name={category.icon} size={24} color={category.color} />
-            </View>
-            <Text style={[
-              styles.categoryName,
-              selectedCategory?.id === category.id && { color: category.color }
-            ]}>
-              {category.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {categoryStatus === 'loading' ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={DEFAULT_CATEGORY_COLOR[type]} size="large" />
+          </View>
+        ) : (
+          <>
+            {filteredCategories.map(category => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryItem,
+                  selectedCategory?.id === category.id && { backgroundColor: `${DEFAULT_CATEGORY_COLOR[type]}20` }
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <View style={[styles.categoryIcon, { backgroundColor: `${DEFAULT_CATEGORY_COLOR[type]}33` }]}>
+                  <Ionicons name={category.icon as any} size={24} color={DEFAULT_CATEGORY_COLOR[type]} />
+                </View>
+                <Text style={[
+                  styles.categoryName,
+                  selectedCategory?.id === category.id && { color: DEFAULT_CATEGORY_COLOR[type] }
+                ]}>
+                  {category.name || `${type === 'income' ? '收入' : '支出'}${category.sort}`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
       </ScrollView>
 
       {/* 备注输入 */}
@@ -167,23 +186,52 @@ const AddTransactionScreen = ({ navigation }) => {
         />
       </View>
 
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       {/* 保存按钮 */}
       <TouchableOpacity 
         style={[
           styles.saveButton,
           { backgroundColor: type === 'expense' ? '#F44336' : '#4CAF50' },
-          (!amount || !selectedCategory) && styles.saveButtonDisabled
+          (!amount || !selectedCategory || isLoading) && styles.saveButtonDisabled
         ]}
         onPress={handleSubmit}
-        disabled={!amount || !selectedCategory}
+        disabled={!amount || !selectedCategory || isLoading}
       >
-        <Text style={styles.saveButtonText}>保存</Text>
+        {isLoading ? (
+          <ActivityIndicator color="#FFF" />
+        ) : (
+          <Text style={styles.saveButtonText}>保存</Text>
+        )}
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  categoryContentLoading: {
+    minHeight: 200,
+  },
+  errorContainer: {
+    margin: 16,
+    padding: 12,
+    backgroundColor: '#CF66791A',
+    borderRadius: 8,
+  },
+  errorText: {
+    color: '#CF6679',
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#121212',

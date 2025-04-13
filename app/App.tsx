@@ -2,6 +2,8 @@ import React, { useState, useEffect, createContext, useCallback } from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider, MD3DarkTheme } from 'react-native-paper';
+import { Provider as ReduxProvider } from 'react-redux';
+import { store } from './store';
 import RootNavigator from './navigation/RootNavigator';
 import CustomAlert from './components/CustomAlert';
 import { AlertContext, AlertState } from './utils/alert';
@@ -123,16 +125,18 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={authContext}>
-      <AlertContext.Provider value={alertContext}>
-        <PaperProvider theme={theme}>
-          <NavigationContainer>
-            <StatusBar barStyle="light-content" />
-            <RootNavigator />
-            <CustomAlert />
-          </NavigationContainer>
-        </PaperProvider>
-      </AlertContext.Provider>
-    </AuthContext.Provider>
+    <ReduxProvider store={store}>
+      <AuthContext.Provider value={authContext}>
+        <AlertContext.Provider value={alertContext}>
+          <PaperProvider theme={theme}>
+            <NavigationContainer>
+              <StatusBar barStyle="light-content" />
+              <RootNavigator />
+              <CustomAlert />
+            </NavigationContainer>
+          </PaperProvider>
+        </AlertContext.Provider>
+      </AuthContext.Provider>
+    </ReduxProvider>
   );
 }

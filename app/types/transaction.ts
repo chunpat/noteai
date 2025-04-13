@@ -1,8 +1,8 @@
 import type { IonIconName } from './category';
 
 export interface Transaction {
-  id: string;
-  category_id: string;
+  id: number;
+  category_id: number;
   amount: number;
   type: 'income' | 'expense';
   date: string;
@@ -12,7 +12,7 @@ export interface Transaction {
 }
 
 export type TransactionRequest = {
-  category_id: string;
+  category_id: number;
   amount: number;
   type: 'income' | 'expense';
   date: string;
@@ -23,7 +23,7 @@ export type TransactionUpdateRequest = Partial<TransactionRequest>;
 
 export type TransactionWithCategory = Transaction & {
   category: {
-    id: string;
+    id: number;
     name: string;
     icon: IonIconName;
   };

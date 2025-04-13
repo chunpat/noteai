@@ -14,6 +14,16 @@ use Psr\Http\Server\RequestHandlerInterface;
 class AuthenticationMiddleware implements MiddlewareInterface
 {
     private Auth $auth;
+    
+    /**
+     * 无需认证的路由白名单
+     */
+    private array $whiteList = [
+        '/api/v1/auth/send-code',
+        '/api/v1/auth/verify-code',
+        '/health',
+        '/api/v1/hello'
+    ];
 
     public function __construct(Auth $auth)
     {
@@ -24,6 +34,13 @@ class AuthenticationMiddleware implements MiddlewareInterface
         ServerRequestInterface $request, 
         RequestHandlerInterface $handler
     ): ResponseInterface {
+        $path = $request->getUri()->getPath();
+        
+        // 检查是否在白名单中
+        if (in_array($path, $this->whiteList)) {
+            return $handler->handle($request);
+        }
+
         $token = str_replace('Bearer ', '', $request->getHeaderLine('Authorization'));
         
         if (empty($token)) {

@@ -1,19 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, FlatList } from 'react-native';
 import { Text, useTheme, FAB, TextInput, Button, Portal, Modal, SegmentedButtons } from 'react-native-paper';
 import { format } from 'date-fns';
+import { useDispatch, useSelector } from 'react-redux';
 import { alert } from '../utils/alert';
 import type { Category } from '../types/category';
 import type { TransactionWithCategory, TransactionRequest } from '../types/transaction';
-import transactionService from '../services/transaction';
-import categoryService from '../services/category';
+import { fetchTransactions, addTransaction, updateTransaction, deleteTransaction } from '../store/transactionsSlice';
+import { fetchCategories } from '../store/categorySlice';
 import Icon from '../components/Icon';
 import IconButton from '../components/IconButton';
+import type { AppDispatch, RootState } from '../store';
 
 const TransactionScreen = () => {
   const theme = useTheme();
-  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
+  const { items: transactions, status } = useSelector((state: RootState) => state.transactions);
+  const { items: categories, status: categoryStatus } = useSelector((state: RootState) => state.categories);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedType, setSelectedType] = useState<'income' | 'expense'>('expense');
@@ -28,31 +31,10 @@ const TransactionScreen = () => {
     note: '',
   });
 
-  const loadTransactions = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await transactionService.getTransactions();
-      setTransactions(data);
-    } catch (error) {
-      alert.show('错误', '获取记账记录失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadCategories = useCallback(async () => {
-    try {
-      const data = await categoryService.getCategories();
-      setCategories(data);
-    } catch (error) {
-      alert.show('错误', '获取分类列表失败');
-    }
-  }, []);
-
   useEffect(() => {
-    loadTransactions();
-    loadCategories();
-  }, [loadTransactions, loadCategories]);
+    dispatch(fetchTransactions());
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   const handleSubmit = async () => {
     if (!formData.category_id) {
@@ -68,13 +50,15 @@ const TransactionScreen = () => {
     try {
       setLoading(true);
       if (editingTransaction) {
-        await transactionService.updateTransaction(editingTransaction.id, formData);
+        await dispatch(updateTransaction({
+          id: editingTransaction.id,
+          data: formData
+        })).unwrap();
         alert.show('成功', '记录更新成功');
       } else {
-        await transactionService.createTransaction(formData);
+        await dispatch(addTransaction(formData)).unwrap();
         alert.show('成功', '记录创建成功');
       }
-      await loadTransactions();
       handleCloseForm();
     } catch (error) {
       alert.show('错误', editingTransaction ? '更新记录失败' : '创建记录失败');
@@ -83,12 +67,11 @@ const TransactionScreen = () => {
     }
   };
 
-  const handleDelete = async (transaction: TransactionWithCategory) => {
+  const handleDelete = (transaction: TransactionWithCategory) => {
     alert.confirm('提示', '确定要删除该记录吗？', async () => {
       try {
         setLoading(true);
-        await transactionService.deleteTransaction(transaction.id);
-        await loadTransactions();
+        await dispatch(deleteTransaction(transaction.id)).unwrap();
         alert.show('成功', '记录删除成功');
       } catch (error) {
         alert.show('错误', '删除记录失败');
@@ -134,10 +117,10 @@ const TransactionScreen = () => {
             mode={formData.category_id === category.id ? 'contained' : 'outlined'}
             onPress={() => setFormData(prev => ({ ...prev, category_id: category.id }))}
             style={styles.categoryButton}
-            disabled={loading}
+            disabled={loading || status === 'loading' || categoryStatus === 'loading'}
           >
             <Icon name={category.icon} size={16} />
-            <Text> {category.name}</Text>
+            <Text style={{ marginLeft: 4 }}>{category.name}</Text>
           </Button>
         ))}
       </View>
@@ -214,7 +197,7 @@ const TransactionScreen = () => {
           setFormData(prev => ({ ...prev, type: selectedType }));
           setShowAddForm(true);
         }}
-        disabled={loading}
+        disabled={loading || status === 'loading'}
       />
 
       <Portal>
@@ -238,7 +221,7 @@ const TransactionScreen = () => {
             }}
             keyboardType="numeric"
             style={styles.input}
-            disabled={loading}
+            disabled={loading || status === 'loading'}
           />
 
           <TextInput
@@ -254,7 +237,7 @@ const TransactionScreen = () => {
               mode="outlined"
               onPress={handleCloseForm}
               style={styles.modalButton}
-              disabled={loading}
+              disabled={loading || status === 'loading'}
             >
               取消
             </Button>

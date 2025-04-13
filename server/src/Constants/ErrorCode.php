@@ -7,7 +7,7 @@ class ErrorCode
 {
     public const SUCCESS = 0;
     public const BAD_REQUEST = 400;
-    public const UNAUTHORIZED = 0;
+    public const UNAUTHORIZED = 401;
     public const FORBIDDEN = 403;
     public const NOT_FOUND = 404;
     public const SERVER_ERROR = 500;
@@ -24,7 +24,7 @@ class ErrorCode
         $messages = [
             self::SUCCESS => 'Success',
             self::BAD_REQUEST => 'Bad Request',
-            self::UNAUTHORIZED => 'aaa',
+            self::UNAUTHORIZED => 'Unauthorized',
             self::FORBIDDEN => 'Forbidden',
             self::NOT_FOUND => 'Not Found',
             self::SERVER_ERROR => 'Server Error',

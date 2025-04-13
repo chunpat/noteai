@@ -16,7 +16,7 @@ final class CreateCategoriesTable extends AbstractMigration
               ->addColumn('created_at', 'datetime', ['default' => 'CURRENT_TIMESTAMP'])
               ->addColumn('updated_at', 'datetime', ['default' => 'CURRENT_TIMESTAMP', 'update' => 'CURRENT_TIMESTAMP'])
               ->addIndex(['user_id', 'name', 'type'], ['unique' => true])
-              ->addForeignKey('user_id', 'users', 'id', ['delete' => 'CASCADE'])
+              // Allow user_id = 0 for system defaults, so removing foreign key constraint
               ->create();
     }
 }

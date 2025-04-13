@@ -14,7 +14,10 @@ return function (App $app) {
     /** @var Container $container */
     $container = $app->getContainer();
 
-    // 中间件注册顺序很重要：先添加的最后执行（最外层）
+    // CORS middleware should be registered first, before any other middleware
+    $app->add($container->get(CorsMiddleware::class));
+    
+    // Other middlewares
     $middlewares = [
         // API日志记录
         ApiLoggerMiddleware::class,
@@ -29,10 +32,7 @@ return function (App $app) {
         AuthenticationMiddleware::class,
         
         // 错误处理
-        ErrorHandlerMiddleware::class,
-        
-        // CORS处理（最外层，应该最先执行）
-        CorsMiddleware::class
+        ErrorHandlerMiddleware::class
     ];
 
     // Body解析中间件 - 最内层，让其他中间件可以访问解析后的请求体

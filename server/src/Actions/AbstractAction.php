@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Constants\ErrorCode;
+use App\Services\Auth;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -11,6 +12,13 @@ use Slim\Psr7\Response;
 
 abstract class AbstractAction implements RequestHandlerInterface
 {
+    protected $auth;
+
+    public function __construct(Auth $auth)
+    {
+        $this->auth = $auth;
+    }
+
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         try {

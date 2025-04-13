@@ -45,13 +45,13 @@ return function (App $app) {
         // Category routes
         $group->get('/categories', ListCategoryAction::class);
         $group->post('/categories', CreateCategoryAction::class);
-        $group->put('/categories/{id}', UpdateCategoryAction::class);
-        $group->delete('/categories/{id}', DeleteCategoryAction::class);
+        $group->post('/categories/update/{id}', UpdateCategoryAction::class);
+        $group->post('/categories/delete/{id}', DeleteCategoryAction::class);
 
         // Transaction routes
         $group->get('/transactions', ListTransactionAction::class);
         $group->post('/transactions', CreateTransactionAction::class);
-        $group->put('/transactions/{id}', UpdateTransactionAction::class);
-        $group->delete('/transactions/{id}', DeleteTransactionAction::class);
+        $group->post('/transactions/update/{id}', UpdateTransactionAction::class);
+        $group->post('/transactions/delete/{id}', DeleteTransactionAction::class);
     });
 };

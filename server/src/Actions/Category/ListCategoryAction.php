@@ -3,24 +3,27 @@ declare(strict_types=1);
 
 namespace App\Actions\Category;
 
+use App\Actions\AbstractAction;
 use App\Models\Category;
+use App\Services\Auth;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class ListCategoryAction
+class ListCategoryAction extends AbstractAction
 {
-    public function __invoke(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface 
+    protected function action(ServerRequestInterface $request): ResponseInterface
     {
-        $userId = $request->getAttribute('user_id');
-        
-        $categories = Category::where('user_id', $userId)
+        // 添加连接检查
+        if (!Category::resolveConnection()) {
+            throw new \RuntimeException('Database connection not configured');
+        }
+        $user = $request->getAttribute('user');
+        $categories = Category::whereIn('user_id', [$user['id'],0])
             ->orderBy('sort', 'asc')
             ->orderBy('created_at', 'desc')
             ->get();
-
-        return $response->withJson([
-            'error_code' => 0,
-            'error_msg' => '',
+            
+        return $this->respondWithData([
             'data' => $categories
         ]);
     }

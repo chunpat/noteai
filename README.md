@@ -219,12 +219,24 @@ cp .env.example .env
 # 使用Docker启动服务
 docker-compose up -d
 
-# 安装PHP依赖
-composer install
+# 在Docker容器中执行composer install/update (在server目录下执行所有命令)
+# 首次安装
+docker-compose exec -w /var/www/html app composer install
+
+# 更新依赖
+docker-compose exec -w /var/www/html app composer update
+
+# 如果遇到权限问题，可以尝试使用root用户:
+docker-compose exec -w /var/www/html -u root app composer update
 
 # 运行数据库迁移
-php vendor/bin/phinx migrate
-```
+docker-compose exec -w /var/www/html app vendor/bin/phinx migrate
+
+# 运行数据库数据填充
+docker compose exec app ./vendor/bin/ph
+inx seed:run
+
+> 提示：在Docker环境中执行composer命令可以避免本地PHP版本不一致导致的问题，并确保依赖包的一致性。
 
 ## 📋 开发注意事项
 
@@ -290,5 +302,3 @@ php vendor/bin/phinx migrate
 ---
 
 用❤️打造 by NoteAI团队
-
-

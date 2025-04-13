@@ -15,11 +15,11 @@ class CreateTransactionAction extends AbstractAction
 {
     protected function action(ServerRequestInterface $request): ResponseInterface
     {
-        $userId = $this->getAuthUserId($request);
+        $user = $request->getAttribute('user');
         $data = $request->getParsedBody();
 
         // Validate required fields
-        if (empty($data['category_id']) || !isset($data['amount']) || empty($data['transaction_date'])) {
+        if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date'])) {
             throw new BusinessException(ErrorCode::MISSING_REQUIRED_FIELDS, 'Category, amount and date are required');
         }
 
@@ -37,11 +37,11 @@ class CreateTransactionAction extends AbstractAction
         // Create transaction
         $transaction = new Transaction();
         $transaction->fill([
-            'user_id' => $userId,
+            'user_id' => $user['id'],
             'category_id' => $data['category_id'],
             'amount' => $data['amount'],
             'note' => $data['note'] ?? null,
-            'transaction_date' => $data['transaction_date']
+            'transaction_date' => $data['date']
         ]);
         $transaction->save();
 

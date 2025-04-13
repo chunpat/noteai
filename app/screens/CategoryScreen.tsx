@@ -1,16 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity } from 'react-native';
 import { Text, useTheme, FAB, IconButton, TextInput, Button, Portal, Modal } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
 import { alert } from '../utils/alert';
-import categoryService from '../services/category';
 import type { Category, CategoryRequest, IonIconName } from '../types/category';
+import { fetchCategories, createCategory, updateCategory, deleteCategory } from '../store/categorySlice';
+import type { AppDispatch, RootState } from '../store';
 
 const DEFAULT_ICON: IonIconName = 'wallet-outline';
 
 const CategoryScreen = () => {
   const theme = useTheme();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
+  const { items: categories, status } = useSelector((state: RootState) => state.categories);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedType, setSelectedType] = useState<'income' | 'expense'>('expense');
@@ -23,21 +26,9 @@ const CategoryScreen = () => {
     icon: DEFAULT_ICON,
   });
 
-  const loadCategories = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await categoryService.getCategories();
-      setCategories(data);
-    } catch (error) {
-      alert.show('错误', '获取分类列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   const filteredCategories = categories.filter(cat => cat.type === selectedType);
 
@@ -50,13 +41,15 @@ const CategoryScreen = () => {
     try {
       setLoading(true);
       if (editingCategory) {
-        await categoryService.updateCategory(editingCategory.id, formData);
+        await dispatch(updateCategory({
+          id: editingCategory.id,
+          data: formData
+        })).unwrap();
         alert.show('成功', '分类更新成功');
       } else {
-        await categoryService.createCategory(formData);
+        await dispatch(createCategory(formData)).unwrap();
         alert.show('成功', '分类创建成功');
       }
-      await loadCategories();
       handleCloseForm();
     } catch (error) {
       alert.show('错误', editingCategory ? '更新分类失败' : '创建分类失败');
@@ -65,12 +58,11 @@ const CategoryScreen = () => {
     }
   };
 
-  const handleDelete = async (category: Category) => {
+  const handleDelete = (category: Category) => {
     alert.confirm('提示', '确定要删除该分类吗？', async () => {
       try {
         setLoading(true);
-        await categoryService.deleteCategory(category.id);
-        await loadCategories();
+        await dispatch(deleteCategory(category.id)).unwrap();
         alert.show('成功', '分类删除成功');
       } catch (error) {
         alert.show('错误', '删除分类失败');
@@ -111,12 +103,14 @@ const CategoryScreen = () => {
           icon="pencil-outline"
           size={20}
           onPress={() => handleEdit(item)}
+          disabled={loading || status === 'loading'}
         />
         <IconButton
           icon="trash-outline"
           size={20}
           iconColor={theme.colors.error}
           onPress={() => handleDelete(item)}
+          disabled={loading || status === 'loading'}
         />
       </View>
     </View>
@@ -129,6 +123,7 @@ const CategoryScreen = () => {
           mode={selectedType === 'expense' ? 'contained' : 'outlined'}
           onPress={() => setSelectedType('expense')}
           style={styles.typeButton}
+          disabled={loading || status === 'loading'}
         >
           支出
         </Button>
@@ -136,6 +131,7 @@ const CategoryScreen = () => {
           mode={selectedType === 'income' ? 'contained' : 'outlined'}
           onPress={() => setSelectedType('income')}
           style={styles.typeButton}
+          disabled={loading || status === 'loading'}
         >
           收入
         </Button>
@@ -155,7 +151,7 @@ const CategoryScreen = () => {
           setFormData(prev => ({ ...prev, type: selectedType }));
           setShowAddForm(true);
         }}
-        disabled={loading}
+        disabled={loading || status === 'loading'}
       />
 
       <Portal>
@@ -173,7 +169,7 @@ const CategoryScreen = () => {
             value={formData.name}
             onChangeText={text => setFormData(prev => ({ ...prev, name: text }))}
             style={styles.input}
-            disabled={loading}
+            disabled={loading || status === 'loading'}
           />
 
           <View style={styles.modalActions}>
@@ -181,7 +177,7 @@ const CategoryScreen = () => {
               mode="outlined"
               onPress={handleCloseForm}
               style={styles.modalButton}
-              disabled={loading}
+              disabled={loading || status === 'loading'}
             >
               取消
             </Button>
@@ -190,7 +186,7 @@ const CategoryScreen = () => {
               onPress={handleSubmit}
               style={styles.modalButton}
               loading={loading}
-              disabled={loading}
+              disabled={loading || status === 'loading'}
             >
               确定
             </Button>

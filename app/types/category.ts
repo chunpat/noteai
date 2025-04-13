@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 export type IonIconName = ComponentProps<typeof Ionicons>['name'];
 
 export interface Category {
-  id: string;
+  id: number;
   name: string;
   type: 'income' | 'expense';
   icon: IonIconName;
