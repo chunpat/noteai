@@ -13,7 +13,7 @@ class ListTransactionAction extends AbstractAction
     protected function action(ServerRequestInterface $request): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $userId = $this->getAuthUserId($request);
+        $userId = $request->getAttribute('user')['id'];
         
         $query = Transaction::query()
             ->with('category') // Eager load category
@@ -46,7 +46,6 @@ class ListTransactionAction extends AbstractAction
         $transactions = $query->orderBy('transaction_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
-
         return $this->respondWithData($transactions);
     }
 }
