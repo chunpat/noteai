@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { transactionService } from '../services/transaction';
 import type { Transaction, TransactionRequest, TransactionUpdateRequest, TransactionWithCategory } from '../types/transaction';
+import type { RootState } from './index';
 
 interface TransactionsState {
   items: TransactionWithCategory[];
@@ -23,21 +24,53 @@ export const fetchTransactions = createAsyncThunk(
 
 export const addTransaction = createAsyncThunk(
   'transactions/addTransaction',
-  async (transaction: TransactionRequest) => {
-    return await transactionService.createTransaction(transaction);
+  async (transaction: TransactionRequest, thunkAPI): Promise<TransactionWithCategory> => {
+    const response = await transactionService.createTransaction(transaction);
+    // Find matching category from existing transactions to include in response
+    const existingCategory = (thunkAPI.getState() as RootState).transactions.items.find(
+      item => item.category.id === response.category_id
+    )?.category;
+    return {
+      ...response,
+      category: existingCategory || {
+        id: response.category_id,
+        name: '',
+        type: 'expense',
+        user_id: 0,
+        sort: 0,
+        icon: 'help-circle-outline',
+        created_at: response.created_at,
+        updated_at: response.updated_at
+      }
+    };
   }
 );
 
 export const updateTransaction = createAsyncThunk(
   'transactions/updateTransaction',
-  async ({ id, data }: { id: string; data: TransactionUpdateRequest }) => {
-    return await transactionService.updateTransaction(id, data);
+  async ({ id, data }: { id: number; data: TransactionUpdateRequest }, thunkAPI): Promise<TransactionWithCategory> => {
+    const response = await transactionService.updateTransaction(id, data);
+    // Keep the existing category when updating
+    const existingTransaction = (thunkAPI.getState() as RootState).transactions.items.find(item => item.id === id);
+    return {
+      ...response,
+      category: existingTransaction?.category || {
+        id: response.category_id,
+        name: '',
+        type: 'expense',
+        user_id: 0,
+        sort: 0,
+        icon: 'help-circle-outline',
+        created_at: response.created_at,
+        updated_at: response.updated_at
+      }
+    };
   }
 );
 
 export const deleteTransaction = createAsyncThunk(
   'transactions/deleteTransaction',
-  async (id: string) => {
+  async (id: number) => {
     await transactionService.deleteTransaction(id);
     return id;
   }
@@ -64,38 +97,17 @@ const transactionsSlice = createSlice({
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch transactions';
       })
-      .addCase(addTransaction.fulfilled, (state, action: PayloadAction<Transaction>) => {
-        // Find the matching category from existing transactions
-        const existingCategory = state.items.find(
-          item => item.category.id === action.payload.category_id
-        )?.category;
-
-        // Add the new transaction with category information
-        state.items.unshift({
-          ...action.payload,
-          category: existingCategory || {
-            id: action.payload.category_id,
-            name: '未知类别',
-            type: action.payload.type,
-            icon: 'help-circle-outline',
-            sort: 0,
-            created_at: action.payload.created_at,
-            updated_at: action.payload.updated_at
-          }
-        } as TransactionWithCategory);
+      .addCase(addTransaction.fulfilled, (state, action: PayloadAction<TransactionWithCategory>) => {
+        // Add the new transaction at the beginning of the list
+        state.items.unshift(action.payload);
       })
-      .addCase(updateTransaction.fulfilled, (state, action: PayloadAction<Transaction>) => {
+      .addCase(updateTransaction.fulfilled, (state, action: PayloadAction<TransactionWithCategory>) => {
         const index = state.items.findIndex(item => item.id === action.payload.id);
         if (index !== -1) {
-          // Keep the existing category information
-          const existingCategory = state.items[index].category;
-          state.items[index] = {
-            ...action.payload,
-            category: existingCategory
-          } as TransactionWithCategory;
+          state.items[index] = action.payload;
         }
       })
-      .addCase(deleteTransaction.fulfilled, (state, action: PayloadAction<string>) => {
+      .addCase(deleteTransaction.fulfilled, (state, action: PayloadAction<number>) => {
         state.items = state.items.filter(item => item.id !== action.payload);
       });
   },

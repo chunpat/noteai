@@ -12,6 +12,7 @@ use App\Actions\Example\HelloWorldAction;
 use App\Actions\Transaction\CreateTransactionAction;
 use App\Actions\Transaction\DeleteTransactionAction;
 use App\Actions\Transaction\ListTransactionAction;
+use App\Actions\Transaction\SummaryTransactionAction;
 use App\Actions\Transaction\UpdateTransactionAction;
 use App\Actions\User\ProfileAction;
 use Slim\App;
@@ -50,6 +51,7 @@ return function (App $app) {
 
         // Transaction routes
         $group->get('/transactions', ListTransactionAction::class);
+        $group->get('/transactions/summary', SummaryTransactionAction::class);
         $group->post('/transactions', CreateTransactionAction::class);
         $group->post('/transactions/update/{id}', UpdateTransactionAction::class);
         $group->post('/transactions/delete/{id}', DeleteTransactionAction::class);

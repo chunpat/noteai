@@ -241,7 +241,7 @@ api.interceptors.response.use(
           break;
 
         case 500:
-          errorMessage = '服务器内部错误，请稍后重试';
+          errorMessage = '服务器错误，请稍后重试';
           errorCode = 1000;
           break;
 
@@ -384,33 +384,65 @@ export const authAPI = {
   }
 };
 
+import type { TransactionWithCategory } from '../types/transaction';
+
+interface ListApiResponse<T> {
+  error_code: number;
+  error_msg: string;
+  data: {
+    data: T[];
+    pagination: {
+      current_page: number;
+      per_page: number;
+      total: number;
+      last_page: number;
+    };
+  };
+}
+
+interface SingleApiResponse<T> {
+  error_code: number;
+  error_msg: string;
+  data: T;
+}
+
+interface TransactionSummary {
+  total_income: string;
+  total_expense: string;
+}
+
 export const transactionsAPI = {
-  getAll: async (): Promise<any[]> => {
-    return withLoading<any[]>('getTransactions', (api) => 
+  getSummary: async (): Promise<SingleApiResponse<TransactionSummary>> => {
+    return withLoading<SingleApiResponse<TransactionSummary>>('getTransactionSummary', (api) => 
+      api.get('/transactions/summary')
+    );
+  },
+  getAll: async (): Promise<ListApiResponse<TransactionWithCategory>> => {
+    return withLoading<ListApiResponse<TransactionWithCategory>>('getTransactions', (api) => 
       api.get('/transactions')
     );
   },
   
-  getById: async (id: string): Promise<any> => {
-    return withLoading<any>(`getTransaction_${id}`, (api) => 
+  getById: async (id: string): Promise<SingleApiResponse<TransactionWithCategory>> => {
+    return withLoading<SingleApiResponse<TransactionWithCategory>>(`getTransaction_${id}`, (api) => 
       api.get(`/transactions/${id}`)
     );
   },
   
-  create: async (data: any): Promise<any> => {
-    return withLoading<any>('createTransaction', (api) => 
+  create: async (data: any): Promise<SingleApiResponse<TransactionWithCategory>> => {
+    return withLoading<SingleApiResponse<TransactionWithCategory>>('createTransaction', (api) => 
       api.post('/transactions', data)
     );
   },
   
-  update: async (id: string, data: any): Promise<any> => {
-    return withLoading<any>(`updateTransaction_${id}`, (api) => 
+  update: async (id: string, data: any): Promise<SingleApiResponse<TransactionWithCategory>> => {
+    return withLoading<SingleApiResponse<TransactionWithCategory>>(`updateTransaction_${id}`, (api) => 
       api.put(`/transactions/${id}`, data)
     );
   },
   
-  delete: async (id: string): Promise<void> => {
-    await withLoading<void>(`deleteTransaction_${id}`, (api) => 
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return withLoading<ApiResponse<void>>(`deleteTransaction_${id}`, (api) => 
       api.delete(`/transactions/${id}`)
     );
   }

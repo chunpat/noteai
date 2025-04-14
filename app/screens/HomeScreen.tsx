@@ -1,53 +1,119 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchTransactions } from '../store/transactionsSlice';
+import type { AppDispatch, RootState } from '../store';
+import type { TransactionWithCategory } from '../types/transaction';
+import { transactionsAPI } from '../services/api';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 
-// 模拟数据
-const MOCK_DATA = {
-  income: 12000.00,
-  expense: 3420.00,
-  recentTransactions: [
-    { id: 1, amount: -58.00, description: '订阅服务', date: '今天 18:50', type: 'expense' },
-    { id: 2, amount: 60.00, description: '兼职收入', date: '今天 17:01', type: 'income' },
-    { id: 3, amount: -120.00, description: '日常支出', date: '昨天 12:30', type: 'expense' },
-    { id: 4, amount: -35.00, description: '交通费用', date: '昨天 09:15', type: 'expense' },
-    { id: 5, amount: 8000.00, description: '工资收入', date: '3月15日', type: 'income' },
-  ]
-};
+dayjs.locale('zh-cn');
 
 const HomeScreen = ({ navigation }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'income', 'expense'
+  const [summary, setSummary] = useState({ total_income: '0', total_expense: '0' });
   
-  // 根据当前选中的标签过滤交易
-  const filteredTransactions = activeTab === 'all' 
-    ? MOCK_DATA.recentTransactions 
-    : MOCK_DATA.recentTransactions.filter(transaction => transaction.type === activeTab);
+  const { items: transactions, status, error } = useSelector((state: RootState) => state.transactions);
   
-  // 渲染交易项
-  const renderTransactionItem = (transaction) => (
+  // Fetch summary data
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const response = await transactionsAPI.getSummary();
+        console.log('Summary response:', response);
+        setSummary(response.data);
+      } catch (error) {
+        console.error('Error fetching summary:', error);
+      }
+    };
+    fetchSummary();
+  }, []);
+  
+  // Fetch transactions on mount or when needed
+  useEffect(() => {
+    if (status === 'idle') {
+      console.log('Dispatching fetch transactions...');
+      dispatch(fetchTransactions()).unwrap()
+        .then(result => {
+          console.log('Fetch transactions success:', result);
+        })
+        .catch(error => {
+          console.error('Fetch transactions error:', error);
+        });
+    }
+  }, [dispatch, status]);
+
+  // Log state changes
+  useEffect(() => {
+    console.log('Transaction state updated:', {
+      status,
+      count: transactions.length,
+      error
+    });
+  }, [transactions, status, error]);
+
+  // Calculate totals
+  const totals = transactions.reduce(
+    (acc, transaction) => {
+      const amount = Number(transaction.amount);
+      if (transaction.category.type === 'income') {
+        acc.income += amount;
+      } else {
+        acc.expense += amount;
+      }
+      return acc;
+    },
+    { income: 0, expense: 0 }
+  );
+
+  // Filter transactions based on active tab
+  const filteredTransactions = activeTab === 'all'
+    ? transactions
+    : transactions.filter(transaction => transaction.category.type === activeTab);
+
+  const formatDate = (dateStr: string) => {
+    const date = dayjs(dateStr);
+    const now = dayjs();
+    
+    if (date.isSame(now, 'day')) {
+      return `今天 ${date.format('HH:mm')}`;
+    } else if (date.isSame(now.subtract(1, 'day'), 'day')) {
+      return `昨天 ${date.format('HH:mm')}`;
+    } else {
+      return date.format('M月D日');
+    }
+  };
+  
+  const renderTransactionItem = (transaction: TransactionWithCategory) => (
     <TouchableOpacity 
       key={transaction.id} 
       style={[styles.transactionItem, { backgroundColor: theme.colors.surface }]}
     >
-      <View style={[styles.transactionIcon, { backgroundColor: transaction.type === 'income' ? '#4CAF5033' : '#F4433633' }]}>
+      <View style={[styles.transactionIcon, { backgroundColor: transaction.category.type === 'income' ? '#4CAF5033' : '#F4433633' }]}>
         <Ionicons 
-          name={transaction.type === 'income' ? 'arrow-down-circle' : 'arrow-up-circle'} 
+          name={transaction.category.icon} 
           size={20} 
-          color={transaction.type === 'income' ? '#4CAF50' : '#F44336'} 
+          color={transaction.category.type === 'income' ? '#4CAF50' : '#F44336'} 
         />
       </View>
       <View style={styles.transactionInfo}>
-        <Text style={styles.transactionDescription}>{transaction.description}</Text>
-        <Text style={styles.transactionDate}>{transaction.date}</Text>
+        <Text style={styles.transactionDescription}>
+          {transaction.category.name || `${transaction.category.type === 'income' ? '收入' : '支出'}${transaction.category.sort || ''}`}
+          {transaction.note ? ` - ${transaction.note}` : ''}
+        </Text>
+        <Text style={styles.transactionDate}>{formatDate(transaction.transaction_date)}</Text>
       </View>
       <Text style={[
         styles.transactionAmount,
-        { color: transaction.type === 'income' ? '#4CAF50' : '#F44336' }
+        { color: transaction.category.type === 'income' ? '#4CAF50' : '#F44336' }
       ]}>
-        {transaction.type === 'income' ? '+' : '-'}
-        {Math.abs(transaction.amount).toFixed(2)}
+        {transaction.category.type === 'income' ? '+' : '-'}
+        {Math.abs(Number(transaction.amount)).toFixed(2)}
       </Text>
     </TouchableOpacity>
   );
@@ -73,12 +139,12 @@ const HomeScreen = ({ navigation }) => {
           <View style={[styles.statCard, { backgroundColor: '#4CAF5020' }]}>
             <Ionicons name="arrow-down-circle" size={24} color="#4CAF50" />
             <Text style={styles.statLabel}>总收入</Text>
-            <Text style={[styles.statValue, { color: '#4CAF50' }]}>¥{MOCK_DATA.income.toFixed(2)}</Text>
+            <Text style={[styles.statValue, { color: '#4CAF50' }]}>¥{Number(summary.total_income).toFixed(2)}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#F4433620' }]}>
             <Ionicons name="arrow-up-circle" size={24} color="#F44336" />
             <Text style={styles.statLabel}>总支出</Text>
-            <Text style={[styles.statValue, { color: '#F44336' }]}>¥{MOCK_DATA.expense.toFixed(2)}</Text>
+            <Text style={[styles.statValue, { color: '#F44336' }]}>¥{Number(summary.total_expense).toFixed(2)}</Text>
           </View>
         </View>
         
@@ -132,7 +198,21 @@ const HomeScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.transactionsList}>
-            {filteredTransactions.map(renderTransactionItem)}
+            {status === 'loading' ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              </View>
+            ) : status === 'failed' ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>加载失败，请重试</Text>
+              </View>
+            ) : filteredTransactions.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>暂无交易记录</Text>
+              </View>
+            ) : (
+              filteredTransactions.map(renderTransactionItem)
+            )}
           </View>
         </View>
       </ScrollView>
@@ -248,6 +328,37 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    minHeight: 200,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    minHeight: 200,
+  },
+  errorText: {
+    color: '#CF6679',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    minHeight: 200,
+  },
+  emptyText: {
+    color: '#888',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 

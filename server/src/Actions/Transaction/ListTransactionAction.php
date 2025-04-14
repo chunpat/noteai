@@ -5,11 +5,18 @@ namespace App\Actions\Transaction;
 
 use App\Actions\AbstractAction;
 use App\Models\Transaction;
+use Illuminate\Pagination\Paginator; // 添加此行
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 class ListTransactionAction extends AbstractAction
 {
+    public function __construct()
+    {
+        // 初始化分页器
+        Paginator::useBootstrap(); // 使用 Bootstrap 样式
+    }
+
     protected function action(ServerRequestInterface $request): ResponseInterface
     {
         $params = $request->getQueryParams();
@@ -46,6 +53,18 @@ class ListTransactionAction extends AbstractAction
         $transactions = $query->orderBy('transaction_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
-        return $this->respondWithData($transactions);
+
+        // 简化返回数据
+        $responseData = [
+            'data' => $transactions->items(), // 数据列表
+            'pagination' => [
+                'current_page' => $transactions->currentPage(),
+                'per_page' => $transactions->perPage(),
+                'total' => $transactions->total(),
+                'last_page' => $transactions->lastPage(),
+            ],
+        ];
+
+        return $this->respondWithData($responseData);
     }
 }
