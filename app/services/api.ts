@@ -26,10 +26,10 @@ export interface ApiError {
 interface AuthResponse {
   token: string;
   user: {
-    id: string;
+    id: number; // 将 id 类型从 string 改为 number
     email: string;
     name: string;
-    avatar?: string;
+    avatar?: string | null; // avatar 也可以为 null
   };
 }
 
@@ -242,7 +242,7 @@ api.interceptors.response.use(
           break;
 
         case 500:
-          errorMessage = '服务器错误，请稍后重试';
+          errorMessage = '服务错误，请稍后重试';
           errorCode = 1000;
           break;
 
@@ -355,10 +355,14 @@ export const authAPI = {
   },
   
   verifyCode: async (email: string, code: string): Promise<AuthResponse> => {
-    const authResponse = await withLoading<AuthResponse>('verifyCode', (api) => 
+    const response = await withLoading<ApiResponse<AuthResponse>>('verifyCode', (api) =>
       api.post('/auth/verify-code', { email, code })
     );
-    
+  
+    // 从 ApiResponse 中提取 data
+    const authResponse = response.data;
+    console.log('authResponse', authResponse);
+  
     // 成功后保存 token
     await AsyncStorage.setItem('userToken', authResponse.token);
     return authResponse;
@@ -424,9 +428,9 @@ export const transactionsAPI = {
     
     return response;
   },
-  getAll: async (): Promise<ListApiResponse<TransactionWithCategory>> => {
+  getAll: async (params?: { page?: string; per_page?: string; type?: string }): Promise<ListApiResponse<TransactionWithCategory>> => {
     const response = await withLoading<ListApiResponse<TransactionWithCategory>>('getTransactions', (api) => 
-      api.get('/transactions')
+      api.get('/transactions', { params })
     );
     
     if (response.error_code !== 0) {

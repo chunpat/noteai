@@ -65,16 +65,8 @@ class Auth
         $stmt->execute(['email' => $email]);
         $verification = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$verification) {
-            throw new BusinessException(ErrorCode::BAD_REQUEST);
-        }
-
-        if (strtotime($verification['expires_at']) < time()) {
-            throw new BusinessException(ErrorCode::BAD_REQUEST);
-        }
-
-        if ($verification['code'] !== $code) {
-            throw new BusinessException(ErrorCode::BAD_REQUEST);
+        if (!$verification || strtotime($verification['expires_at']) < time() || $verification['code'] !== $code) {
+            throw new BusinessException(ErrorCode::EMAIL_CODE_ERROR);
         }
 
         // 获取或创建用户

@@ -7,18 +7,41 @@ interface TransactionsState {
   items: TransactionWithCategory[];
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
+  pagination: {
+    currentPage: number;
+    lastPage: number;
+    total: number;
+    perPage: number;
+  };
+  hasMore: boolean;
 }
 
 const initialState: TransactionsState = {
   items: [],
   status: 'idle',
   error: null,
+  pagination: {
+    currentPage: 1,
+    lastPage: 1,
+    total: 0,
+    perPage: 20
+  },
+  hasMore: true
 };
 
 export const fetchTransactions = createAsyncThunk(
   'transactions/fetchTransactions',
-  async () => {
-    return await transactionService.getTransactions();
+  async ({ page = 1, perPage = 20, refresh = false, type = 'all' }: { 
+    page?: number; 
+    perPage?: number; 
+    refresh?: boolean;
+    type?: 'all' | 'income' | 'expense';
+  }, { getState }) => {
+    const state = getState() as RootState;
+    if (!refresh && !state.transactions.hasMore) {
+      return { transactions: [], pagination: state.transactions.pagination };
+    }
+    return await transactionService.getTransactions(page, perPage, type !== 'all' ? type : undefined);
   }
 );
 
@@ -89,9 +112,16 @@ const transactionsSlice = createSlice({
       .addCase(fetchTransactions.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(fetchTransactions.fulfilled, (state, action: PayloadAction<TransactionWithCategory[]>) => {
+      .addCase(fetchTransactions.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.items = action.payload;
+        const { transactions, pagination } = action.payload;
+        if (pagination.currentPage === 1) {
+          state.items = transactions;
+        } else {
+          state.items = [...state.items, ...transactions];
+        }
+        state.pagination = pagination;
+        state.hasMore = pagination.currentPage < pagination.lastPage;
       })
       .addCase(fetchTransactions.rejected, (state, action) => {
         state.status = 'failed';

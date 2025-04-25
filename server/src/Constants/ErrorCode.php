@@ -12,12 +12,19 @@ class ErrorCode
     public const NOT_FOUND = 404;
     public const SERVER_ERROR = 500;
 
+    // common error codes
+    public const EMAIL_FORMAT_ERROR = 4001;
+    public const EMAIL_CODE_FORMAT_ERROR = 4002;
+    public const EMAIL_CODE_ERROR = 4003;
+
     // Business error codes
-    public const CATEGORY_EXISTS = 4001;
-    public const INVALID_CATEGORY_TYPE = 4002;
-    public const MISSING_REQUIRED_FIELDS = 40000;
-    public const TRANSACTION_NOT_FOUND = 4004;
-    public const CATEGORY_NOT_FOUND = 4005;
+    public const CATEGORY_EXISTS = 4101;
+    public const INVALID_CATEGORY_TYPE = 4102;
+    public const MISSING_REQUIRED_FIELDS = 4103;
+    public const TRANSACTION_NOT_FOUND = 4104;
+    public const CATEGORY_NOT_FOUND = 4105;
+
+
 
     public static function getMessage(int $errorCode): string
     {
@@ -33,6 +40,8 @@ class ErrorCode
             self::MISSING_REQUIRED_FIELDS => 'Missing required fields',
             self::TRANSACTION_NOT_FOUND => 'Transaction not found',
             self::CATEGORY_NOT_FOUND => 'Category not found',
+
+            self::EMAIL_CODE_ERROR => 'Email code error',
         ];
 
         return $messages[$errorCode] ?? 'Unknown error';

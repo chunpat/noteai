@@ -58,11 +58,8 @@ abstract class AbstractAction implements RequestHandlerInterface
         $responseBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR); // 确保 JSON 编码正确
         $response->getBody()->write($responseBody);
 
-        // 业务错误返回200，系统错误返回对应状态码
+        // http code状态码固定为200, 具体错误由 error_code 和 error_msg 字段描述
         $statusCode = 200;
-        if ($errorCode < 1000) {
-            $statusCode = $errorCode;
-        }
 
         return $response
             ->withHeader('Content-Type', 'application/json; charset=utf-8') // 明确指定 charset
@@ -76,17 +73,18 @@ abstract class AbstractAction implements RequestHandlerInterface
         }
         
         // 系统级错误
-        switch(true) {
-            case $e instanceof \InvalidArgumentException:
-                return 400;
-            case $e instanceof \App\Exceptions\UnauthorizedException:
-                return 401;
-            case $e instanceof \App\Exceptions\ForbiddenException:
-                return 403;
-            case $e instanceof \App\Exceptions\NotFoundException:
-                return 404;
-            default:
-                return 500;
-        }
+        // switch(true) {
+        //     case $e instanceof \InvalidArgumentException:
+        //         return 400;
+        //     case $e instanceof \App\Exceptions\UnauthorizedException:
+        //         return 401;
+        //     case $e instanceof \App\Exceptions\ForbiddenException:
+        //         return 403;
+        //     case $e instanceof \App\Exceptions\NotFoundException:
+        //         return 404;
+        //     default:
+        //         return 500;
+        // }
+        return 200; // 默认返回200, 具体错误由 error_code 和 error_msg 字段描述
     }
 }

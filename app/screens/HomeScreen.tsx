@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { 
+  StyleSheet, 
+  View, 
+  Text, 
+  SafeAreaView, 
+  ScrollView, 
+  TouchableOpacity, 
+  ActivityIndicator,
+  NativeSyntheticEvent,
+  NativeScrollEvent 
+} from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,7 +17,6 @@ import { fetchTransactions } from '../store/transactionsSlice';
 import { fetchSummary } from '../store/summarySlice';
 import type { AppDispatch, RootState } from '../store';
 import type { TransactionWithCategory } from '../types/transaction';
-import { transactionsAPI } from '../services/api';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 
@@ -16,16 +25,44 @@ dayjs.locale('zh-cn');
 const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'income', 'expense'
+  const [activeTab, setActiveTab] = useState<'all' | 'income' | 'expense'>('all');
   const summary = useSelector((state: RootState) => state.summary);
   
-  const { items: transactions, status, error } = useSelector((state: RootState) => state.transactions);
+  const { items: transactions, status, error, pagination, hasMore } = useSelector((state: RootState) => state.transactions);
   
   // Fetch summary and transaction data when tab changes
   useEffect(() => {
     dispatch(fetchSummary());
-    dispatch(fetchTransactions());
+    dispatch(fetchTransactions({ 
+      page: 1, 
+      perPage: 20, 
+      refresh: true,
+      type: activeTab
+    }));
   }, [dispatch, activeTab]);
+
+  // Handle load more
+  const handleLoadMore = () => {
+    if (status !== 'loading' && hasMore) {
+      dispatch(fetchTransactions({ 
+        page: pagination.currentPage + 1,
+        perPage: pagination.perPage,
+        type: activeTab
+      }));
+    }
+  };
+
+  // Handle scroll to bottom
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 10;
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= 
+      contentSize.height - paddingToBottom;
+      
+    if (isCloseToBottom) {
+      handleLoadMore();
+    }
+  };
 
   // Log state changes
   useEffect(() => {
@@ -50,10 +87,8 @@ const HomeScreen = ({ navigation }) => {
     { income: 0, expense: 0 }
   );
 
-  // Filter transactions based on active tab
-  const filteredTransactions = activeTab === 'all'
-    ? transactions
-    : transactions.filter(transaction => transaction.category.type === activeTab);
+  // No need to filter transactions manually since we're getting filtered data from API
+  const filteredTransactions = transactions;
 
   const formatDate = (dateStr: string, createdAt: string) => {
     // 使用 transaction_date 判断日期
@@ -116,7 +151,11 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        onScroll={handleScroll}
+        scrollEventThrottle={400}
+      >
         {/* 收支统计 */}
         <View style={styles.statsContainer}>
           <View style={[styles.statCard, { backgroundColor: '#4CAF5020' }]}>
@@ -181,20 +220,21 @@ const HomeScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.transactionsList}>
-            {status === 'loading' ? (
+            {filteredTransactions.map(renderTransactionItem)}
+            {status === 'loading' && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
               </View>
-            ) : status === 'failed' ? (
+            )}
+            {status === 'failed' && (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>加载失败，请重试</Text>
               </View>
-            ) : filteredTransactions.length === 0 ? (
+            )}
+            {filteredTransactions.length === 0 && status !== 'loading' && (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>暂无交易记录</Text>
               </View>
-            ) : (
-              filteredTransactions.map(renderTransactionItem)
             )}
           </View>
         </View>

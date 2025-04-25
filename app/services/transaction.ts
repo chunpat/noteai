@@ -22,10 +22,22 @@ interface SingleApiResponse<T> {
 }
 
 class TransactionService {
-  async getTransactions(): Promise<TransactionWithCategory[]> {
+  async getTransactions(page: number = 1, perPage: number = 20, type?: string): Promise<{ 
+    transactions: TransactionWithCategory[],
+    pagination: {
+      currentPage: number;
+      lastPage: number;
+      total: number;
+      perPage: number;
+    }
+  }> {
     try {
-      console.log('Fetching transactions...');
-      const response = await transactionsAPI.getAll() as ListApiResponse<TransactionWithCategory>;
+      console.log('Fetching transactions...', { page, perPage });
+      const response = await transactionsAPI.getAll({ 
+        page: page.toString(),
+        per_page: perPage.toString(),
+        ...(type && { type })
+      }) as ListApiResponse<TransactionWithCategory>;
       console.log('Raw API response:', response);
 
       if (response.error_code !== 0) {
@@ -34,11 +46,21 @@ class TransactionService {
 
       // Extract transactions from nested data structure
       const transactions = response?.data?.data || [];
-      return transactions.map((transaction: any) => ({
+      const mappedTransactions = transactions.map((transaction: any) => ({
         ...transaction,
         amount: transaction.amount?.toString() || '0',
         transaction_date: transaction.transaction_date || transaction.created_at,
       }));
+
+      return {
+        transactions: mappedTransactions,
+        pagination: {
+          currentPage: response.data.pagination.current_page,
+          lastPage: response.data.pagination.last_page,
+          total: response.data.pagination.total,
+          perPage: response.data.pagination.per_page
+        }
+      };
     } catch (error) {
       console.error('Error fetching transactions:', error);
       throw error;

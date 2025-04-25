@@ -42,11 +42,10 @@ class VerifyCodeAction extends AbstractAction
         $code = $data['code'] ?? '';
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new BusinessException(ErrorCode::AUTH_INVALID_EMAIL_FORMAT);
+            throw new BusinessException(ErrorCode::EMAIL_FORMAT_ERROR);
         }
-
         if (strlen($code) !== 6 || !is_numeric($code)) {
-            throw new BusinessException(ErrorCode::AUTH_INVALID_CODE_FORMAT);
+            throw new BusinessException(ErrorCode::EMAIL_CODE_FORMAT_ERROR);
         }
 
         // 验证登录
