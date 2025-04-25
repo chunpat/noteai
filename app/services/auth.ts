@@ -86,6 +86,7 @@ class AuthService {
 
   async verifyCode(email: string, code: string): Promise<VerifyCodeResponse> {
     const response = await authAPI.verifyCode(email, code);
+    console.log('verifyCode response:', response);
     // 存储认证信息
     await this.storeAuthData(response.token, response.user);
     return response;

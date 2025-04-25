@@ -17,9 +17,29 @@ class CreateTransactionAction extends AbstractAction
     {
         $user = $request->getAttribute('user');
         $data = $request->getParsedBody();
+        if (!empty($data['category'])){
+            // 如果不存在，就创建
+            $category = new Category();
+            // 查找是否存在 ，
+            $category = Category::whereIn('user_id', [$user['id'],0])
+                ->where('name', $data['category'])
+                ->first();
+            //不存在就创建
+            if (!$category) {
+                $category = new Category();
+                $category->fill([
+                    'user_id' => $user['id'],
+                    'name' => $data['category'],
+                    'type' => $data['type'] == '支出' ? 'expense' : 'income', // 默认类型为支出
+                    'sort' => 0, // 默认类型为支出
+                ]);
+                $category->save();
+            }
+            $data['category_id'] = $category->id;
+        }
 
         // Validate required fields
-        if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date'])) {
+        if (empty($data['category_id']) || !isset($data['amount']) || empty($data['transaction_date'])) {
             throw new BusinessException(ErrorCode::MISSING_REQUIRED_FIELDS, 'Category, amount and date are required');
         }
 
@@ -41,7 +61,7 @@ class CreateTransactionAction extends AbstractAction
             'category_id' => $data['category_id'],
             'amount' => $data['amount'],
             'note' => $data['note'] ?? null,
-            'transaction_date' => $data['date']
+            'transaction_date' => $data['transaction_date']
         ]);
         $transaction->save();
 

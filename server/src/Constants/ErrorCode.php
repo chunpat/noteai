@@ -13,11 +13,11 @@ class ErrorCode
     public const SERVER_ERROR = 500;
 
     // Business error codes
-    public const CATEGORY_EXISTS = 2001;
-    public const INVALID_CATEGORY_TYPE = 2002;
-    public const MISSING_REQUIRED_FIELDS = 2003;
-    public const TRANSACTION_NOT_FOUND = 2004;
-    public const CATEGORY_NOT_FOUND = 2005;
+    public const CATEGORY_EXISTS = 4001;
+    public const INVALID_CATEGORY_TYPE = 4002;
+    public const MISSING_REQUIRED_FIELDS = 40000;
+    public const TRANSACTION_NOT_FOUND = 4004;
+    public const CATEGORY_NOT_FOUND = 4005;
 
     public static function getMessage(int $errorCode): string
     {

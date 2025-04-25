@@ -4,6 +4,7 @@ declare(strict_types=1);
 use Psr\Container\ContainerInterface;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use App\Services\Auth;
+use App\Services\OpenAI;
 use Predis\Client as RedisClient;
 use Psr\Log\LoggerInterface;
 use Slim\Psr7\Factory\ResponseFactory;
@@ -135,5 +136,10 @@ return [
 
     ContentLengthMiddleware::class => function () {
         return new ContentLengthMiddleware();
+    },
+
+    // OpenAI service
+    OpenAI::class => function () {
+        return new OpenAI();
     }
 ];

@@ -66,15 +66,15 @@ class Auth
         $verification = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$verification) {
-            throw new BusinessException(ErrorCode::AUTH_VERIFICATION_CODE_NOT_FOUND);
+            throw new BusinessException(ErrorCode::BAD_REQUEST);
         }
 
         if (strtotime($verification['expires_at']) < time()) {
-            throw new BusinessException(ErrorCode::AUTH_VERIFICATION_CODE_EXPIRED);
+            throw new BusinessException(ErrorCode::BAD_REQUEST);
         }
 
         if ($verification['code'] !== $code) {
-            throw new BusinessException(ErrorCode::AUTH_VERIFICATION_CODE_INVALID);
+            throw new BusinessException(ErrorCode::BAD_REQUEST);
         }
 
         // 获取或创建用户

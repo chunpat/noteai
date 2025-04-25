@@ -144,10 +144,10 @@ api.interceptors.response.use(
   (response) => {
     // 如果是调试输出，直接显示原始内容
     const contentType = response.headers['content-type'] || '';
-    if (contentType.includes('text/plain')) {
-      console.log('Debug output:', response.data);
-      return response;
-    }
+    // if (contentType.includes('text/plain')) {
+    //   console.log('Debug output:', response.data);
+    //   return response;
+    // }
     
     // 其余部分保持不变
     // 打印原始响应数据,用于调试
@@ -185,10 +185,11 @@ api.interceptors.response.use(
     
     if (apiResponse.error_code !== 0) {
       const errorMessage = apiResponse.error_msg || ERROR_MESSAGES[apiResponse.error_code] || '请求失败';
-      
+      console.log('Error response:', errorMessage);
       // 特定错误码无需显示提示
       if (!isSilentError(apiResponse.error_code)) {
         showAlert('错误提示', errorMessage);
+        throw new Error(errorMessage); // 模拟错误
       }
       
       throw {
@@ -413,38 +414,78 @@ interface TransactionSummary {
 
 export const transactionsAPI = {
   getSummary: async (): Promise<SingleApiResponse<TransactionSummary>> => {
-    return withLoading<SingleApiResponse<TransactionSummary>>('getTransactionSummary', (api) => 
+    const response = await withLoading<SingleApiResponse<TransactionSummary>>('getTransactionSummary', (api) => 
       api.get('/transactions/summary')
     );
+    
+    if (response.error_code !== 0) {
+      throw new Error(response.error_msg || 'Failed to get summary');
+    }
+    
+    return response;
   },
   getAll: async (): Promise<ListApiResponse<TransactionWithCategory>> => {
-    return withLoading<ListApiResponse<TransactionWithCategory>>('getTransactions', (api) => 
+    const response = await withLoading<ListApiResponse<TransactionWithCategory>>('getTransactions', (api) => 
       api.get('/transactions')
     );
+    
+    if (response.error_code !== 0) {
+      throw new Error(response.error_msg || 'Failed to get transactions');
+    }
+    
+    return response;
   },
   
   getById: async (id: string): Promise<SingleApiResponse<TransactionWithCategory>> => {
-    return withLoading<SingleApiResponse<TransactionWithCategory>>(`getTransaction_${id}`, (api) => 
+    const response = await withLoading<SingleApiResponse<TransactionWithCategory>>(`getTransaction_${id}`, (api) => 
       api.get(`/transactions/${id}`)
     );
+    
+    if (response.error_code !== 0) {
+      throw new Error(response.error_msg || 'Failed to get transaction');
+    }
+    
+    return response;
   },
   
   create: async (data: any): Promise<SingleApiResponse<TransactionWithCategory>> => {
-    return withLoading<SingleApiResponse<TransactionWithCategory>>('createTransaction', (api) => 
+    const response = await withLoading<SingleApiResponse<TransactionWithCategory>>('createTransaction', (api) => 
       api.post('/transactions', data)
     );
+    
+    if (response.error_code === 40000) {
+      throw new Error(response.error_msg || 'Required fields are missing');
+    }
+    
+    return response;
   },
   
   update: async (id: string, data: any): Promise<SingleApiResponse<TransactionWithCategory>> => {
-    return withLoading<SingleApiResponse<TransactionWithCategory>>(`updateTransaction_${id}`, (api) => 
+    const response = await withLoading<SingleApiResponse<TransactionWithCategory>>(`updateTransaction_${id}`, (api) => 
       api.put(`/transactions/${id}`, data)
     );
+    
+    if (response.error_code === 40000) {
+      throw new Error(response.error_msg || 'Required fields are missing');
+    }
+    
+    if (response.error_code !== 0) {
+      throw new Error(response.error_msg || 'Failed to update transaction');
+    }
+    
+    return response;
   },
   
   delete: async (id: string): Promise<ApiResponse<void>> => {
-    return withLoading<ApiResponse<void>>(`deleteTransaction_${id}`, (api) => 
+    const response = await withLoading<ApiResponse<void>>(`deleteTransaction_${id}`, (api) => 
       api.delete(`/transactions/${id}`)
     );
+    
+    if (response.error_code !== 0) {
+      throw new Error(response.error_msg || 'Failed to delete transaction');
+    }
+    
+    return response;
   }
 };
 

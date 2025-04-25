@@ -11,7 +11,7 @@ use App\Constants\ErrorCode;
 
 class VerifyCodeAction extends AbstractAction
 {
-    private $auth;
+    protected $auth;
 
     public function __construct(Auth $auth)
     {

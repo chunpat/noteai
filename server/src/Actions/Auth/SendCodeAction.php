@@ -10,7 +10,7 @@ use App\Exceptions\BusinessException;
 
 class SendCodeAction extends AbstractAction
 {
-    private $auth;
+    protected $auth;
 
     public function __construct(Auth $auth)
     {

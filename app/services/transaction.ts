@@ -27,6 +27,11 @@ class TransactionService {
       console.log('Fetching transactions...');
       const response = await transactionsAPI.getAll() as ListApiResponse<TransactionWithCategory>;
       console.log('Raw API response:', response);
+
+      if (response.error_code !== 0) {
+        throw new Error(response.error_msg || '获取交易记录失败');
+      }
+
       // Extract transactions from nested data structure
       const transactions = response?.data?.data || [];
       return transactions.map((transaction: any) => ({
@@ -48,8 +53,23 @@ class TransactionService {
         // Convert number to string for API
         amount: data.amount.toString(),
       };
+      
+      // 验证必填字段
+      if (!newTransaction.category_id || !newTransaction.amount || !newTransaction.transaction_date) {
+        throw new Error('请完整填写必要信息');
+      }
+      
       const response = await transactionsAPI.create(newTransaction) as SingleApiResponse<TransactionWithCategory>;
       console.log('Created transaction response:', response);
+      
+      if (response.error_code === 40000) {
+        throw new Error(response.error_msg || '请完整填写必要信息');
+      }
+      
+      if (response.error_code !== 0) {
+        throw new Error(response.error_msg || '创建交易记录失败');
+      }
+      
       return response.data;
     } catch (error) {
       console.error('Error creating transaction:', error);
@@ -65,8 +85,18 @@ class TransactionService {
         // Convert amount to string if present
         amount: data.amount?.toString(),
       };
+
       const response = await transactionsAPI.update(id.toString(), updateData) as SingleApiResponse<TransactionWithCategory>;
       console.log('Updated transaction response:', response);
+
+      if (response.error_code === 40000) {
+        throw new Error(response.error_msg || '请完整填写必要信息');
+      }
+
+      if (response.error_code !== 0) {
+        throw new Error(response.error_msg || '更新交易记录失败');
+      }
+
       return response.data;
     } catch (error) {
       console.error('Error updating transaction:', error);
@@ -77,7 +107,12 @@ class TransactionService {
   async deleteTransaction(id: number): Promise<void> {
     try {
       console.log(`Deleting transaction ${id}`);
-      await transactionsAPI.delete(id.toString());
+      const response = await transactionsAPI.delete(id.toString());
+      
+      if (response.error_code !== 0) {
+        throw new Error(response.error_msg || '删除交易记录失败');
+      }
+      
       console.log('Transaction deleted successfully');
     } catch (error) {
       console.error('Error deleting transaction:', error);

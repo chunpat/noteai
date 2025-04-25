@@ -39,11 +39,11 @@ abstract class AbstractAction implements RequestHandlerInterface
         ];
 
         $response = new Response();
-        $response->getBody()->write(json_encode($payload));
+        $responseBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $response->getBody()->write($responseBody);
 
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withStatus($statusCode);
+        // 确保只设置一次 Content-Type
+        return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
     }
 
     protected function respondWithError(string $message, int $errorCode = ErrorCode::SERVER_ERROR): ResponseInterface
@@ -54,17 +54,18 @@ abstract class AbstractAction implements RequestHandlerInterface
             'error_msg' => $errorCode >= 1000 ? ErrorCode::getMessage($errorCode) : $message,
             'data' => new \stdClass()
         ];
-        
-        $response->getBody()->write(json_encode($payload));
+
+        $responseBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR); // 确保 JSON 编码正确
+        $response->getBody()->write($responseBody);
 
         // 业务错误返回200，系统错误返回对应状态码
         $statusCode = 200;
         if ($errorCode < 1000) {
             $statusCode = $errorCode;
         }
-        
+
         return $response
-            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Content-Type', 'application/json; charset=utf-8') // 明确指定 charset
             ->withStatus($statusCode);
     }
 

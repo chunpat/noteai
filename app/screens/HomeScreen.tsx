@@ -4,6 +4,7 @@ import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchTransactions } from '../store/transactionsSlice';
+import { fetchSummary } from '../store/summarySlice';
 import type { AppDispatch, RootState } from '../store';
 import type { TransactionWithCategory } from '../types/transaction';
 import { transactionsAPI } from '../services/api';
@@ -16,37 +17,15 @@ const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'income', 'expense'
-  const [summary, setSummary] = useState({ total_income: '0', total_expense: '0' });
+  const summary = useSelector((state: RootState) => state.summary);
   
   const { items: transactions, status, error } = useSelector((state: RootState) => state.transactions);
   
-  // Fetch summary data
+  // Fetch summary and transaction data when tab changes
   useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const response = await transactionsAPI.getSummary();
-        console.log('Summary response:', response);
-        setSummary(response.data);
-      } catch (error) {
-        console.error('Error fetching summary:', error);
-      }
-    };
-    fetchSummary();
-  }, []);
-  
-  // Fetch transactions on mount or when needed
-  useEffect(() => {
-    if (status === 'idle') {
-      console.log('Dispatching fetch transactions...');
-      dispatch(fetchTransactions()).unwrap()
-        .then(result => {
-          console.log('Fetch transactions success:', result);
-        })
-        .catch(error => {
-          console.error('Fetch transactions error:', error);
-        });
-    }
-  }, [dispatch, status]);
+    dispatch(fetchSummary());
+    dispatch(fetchTransactions());
+  }, [dispatch, activeTab]);
 
   // Log state changes
   useEffect(() => {
@@ -76,14 +55,18 @@ const HomeScreen = ({ navigation }) => {
     ? transactions
     : transactions.filter(transaction => transaction.category.type === activeTab);
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string, createdAt: string) => {
+    // 使用 transaction_date 判断日期
     const date = dayjs(dateStr);
     const now = dayjs();
     
+    // 使用 created_at 显示具体时间
+    const createdTime = dayjs(createdAt);
+    
     if (date.isSame(now, 'day')) {
-      return `今天 ${date.format('HH:mm')}`;
+      return `今天 ${createdTime.format('HH:mm')}`;
     } else if (date.isSame(now.subtract(1, 'day'), 'day')) {
-      return `昨天 ${date.format('HH:mm')}`;
+      return `昨天 ${createdTime.format('HH:mm')}`;
     } else {
       return date.format('M月D日');
     }
@@ -106,7 +89,7 @@ const HomeScreen = ({ navigation }) => {
           {transaction.category.name || `${transaction.category.type === 'income' ? '收入' : '支出'}${transaction.category.sort || ''}`}
           {transaction.note ? ` - ${transaction.note}` : ''}
         </Text>
-        <Text style={styles.transactionDate}>{formatDate(transaction.transaction_date)}</Text>
+        <Text style={styles.transactionDate}>{formatDate(transaction.transaction_date, transaction.created_at)}</Text>
       </View>
       <Text style={[
         styles.transactionAmount,
@@ -139,12 +122,12 @@ const HomeScreen = ({ navigation }) => {
           <View style={[styles.statCard, { backgroundColor: '#4CAF5020' }]}>
             <Ionicons name="arrow-down-circle" size={24} color="#4CAF50" />
             <Text style={styles.statLabel}>总收入</Text>
-            <Text style={[styles.statValue, { color: '#4CAF50' }]}>¥{Number(summary.total_income).toFixed(2)}</Text>
+            <Text style={[styles.statValue, { color: '#4CAF50' }]}>¥{Number(summary.total_income || 0).toFixed(2)}</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#F4433620' }]}>
             <Ionicons name="arrow-up-circle" size={24} color="#F44336" />
             <Text style={styles.statLabel}>总支出</Text>
-            <Text style={[styles.statValue, { color: '#F44336' }]}>¥{Number(summary.total_expense).toFixed(2)}</Text>
+            <Text style={[styles.statValue, { color: '#F44336' }]}>¥{Number(summary.total_expense || 0).toFixed(2)}</Text>
           </View>
         </View>
         

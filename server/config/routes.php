@@ -9,6 +9,7 @@ use App\Actions\Category\DeleteCategoryAction;
 use App\Actions\Category\ListCategoryAction;
 use App\Actions\Category\UpdateCategoryAction;
 use App\Actions\Example\HelloWorldAction;
+use App\Actions\Transaction\AnalyzeTransactionAction;
 use App\Actions\Transaction\CreateTransactionAction;
 use App\Actions\Transaction\DeleteTransactionAction;
 use App\Actions\Transaction\ListTransactionAction;
@@ -55,5 +56,6 @@ return function (App $app) {
         $group->post('/transactions', CreateTransactionAction::class);
         $group->post('/transactions/update/{id}', UpdateTransactionAction::class);
         $group->post('/transactions/delete/{id}', DeleteTransactionAction::class);
+        $group->post('/transactions/analyze', AnalyzeTransactionAction::class);
     });
 };

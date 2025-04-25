@@ -21,6 +21,7 @@ class AuthenticationMiddleware implements MiddlewareInterface
     private array $whiteList = [
         '/api/v1/auth/send-code',
         '/api/v1/auth/verify-code',
+        '/api/v1/auth/logout',
         '/health',
         '/api/v1/hello'
     ];
