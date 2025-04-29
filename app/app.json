@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "0e2b8e31-5e64-41fb-95e5-3d07b87e7fc4"
+      }
+    },
+    "android": {
+      "package": "com.chunpat.noteai"
+    }
+  }
+}
