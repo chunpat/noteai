@@ -1,8 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
+    image: ghcr.io/chunpat/noteai:latest
     volumes:
       - .:/var/www/html
     extra_hosts:
