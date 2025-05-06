@@ -35,7 +35,7 @@ const HomeScreen = ({ navigation }) => {
     dispatch(fetchSummary());
     dispatch(fetchTransactions({ 
       page: 1, 
-      perPage: 20, 
+      perPage: 10, 
       refresh: true,
       type: activeTab
     }));

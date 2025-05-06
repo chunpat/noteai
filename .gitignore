@@ -6,3 +6,4 @@ app/web-build
 app/yarn.lock
 server/php_errors.log
 app/android
+server/composer.lock
