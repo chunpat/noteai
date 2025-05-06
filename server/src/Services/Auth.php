@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use PDO;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception as PHPMailerException;
+use PHPMailer\PHPMailer\SMTP;
 use App\Exceptions\BusinessException;
 use App\Constants\ErrorCode;
 
@@ -41,7 +44,40 @@ class Auth
             'expires_at' => $expiresAt
         ]);
 
-        // TODO: 通过邮件发送验证码
+        // 创建PHPMailer实例
+        $mail = new PHPMailer(true);
+        
+        // 配置SMTP
+        $mail->isSMTP();
+        $mail->Host = $_ENV['MAIL_HOST'];
+        $mail->SMTPAuth = true;
+        $mail->Username = $_ENV['MAIL_USERNAME'];
+        $mail->Password = $_ENV['MAIL_PASSWORD'];
+        $mail->SMTPSecure = $_ENV['MAIL_ENCRYPTION'];
+        $mail->Port = (int)$_ENV['MAIL_PORT'];
+        $mail->CharSet = 'UTF-8';
+
+        // 设置发件人
+        $mail->setFrom($_ENV['MAIL_FROM_ADDRESS'], $_ENV['MAIL_FROM_NAME']);
+        $mail->addAddress($email);
+
+        // 设置邮件内容
+        $mail->isHTML(true);
+        $mail->Subject = 'NoteAI 验证码';
+        $mail->Body = sprintf(
+            '<div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>验证码</h2>
+                <p>您的验证码是: <strong style="font-size: 24px; color: #007bff;">%s</strong></p>
+                <p>验证码将在 %d 分钟后过期。</p>
+                <p>如果这不是您的操作，请忽略此邮件。</p>
+            </div>',
+            $code,
+            self::VERIFICATION_CODE_EXPIRE_MINUTES
+        );
+
+        // 发送邮件
+        $mail->send();
+
         // 开发环境直接打印
         if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
             error_log("Verification code for {$email}: {$code}");
@@ -114,12 +150,9 @@ class Auth
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
-    public function getUser(): ?array
+    public function getUser(string $token): ?array
     {
-        
-        
-        $stmt->execute(['token' => $token]);
-        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        return $this->getUserFromToken($token);
     }
 
     /**

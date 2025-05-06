@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/chunpat/noteai:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-username/noteai}:latest
     volumes:
       - .:/var/www/html
     extra_hosts:

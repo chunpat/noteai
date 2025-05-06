@@ -3,3 +3,6 @@ app/package-lock.json
 app/.expo
 app/web-build
 .DS_Store
+app/yarn.lock
+server/php_errors.log
+app/android

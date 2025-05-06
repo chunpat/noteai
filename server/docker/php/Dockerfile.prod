@@ -35,10 +35,21 @@ RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.18/m
 WORKDIR /var/www/html
 RUN mkdir -p /var/www/html/public/apidoc
 
+# Copy composer files
+COPY --chown=www:www composer.json composer.lock ./
+
+# Install dependencies
+USER www
+RUN composer install --no-scripts --no-autoloader
+
 # Copy application code
 COPY --chown=www:www . /var/www/html/
 
+# Generate autoloader and run scripts
+RUN composer dump-autoload --optimize
+
 # Set permissions
+USER root
 RUN chown -R www:www /var/www
 
 # Switch to non-root user

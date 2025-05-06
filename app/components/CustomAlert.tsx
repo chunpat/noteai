@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Portal, Dialog, Button } from 'react-native-paper';
+import { Portal, Dialog, Button, Text } from 'react-native-paper';
 import { AlertContext } from '../utils/alert';
 
 const CustomAlert = () => {
@@ -18,7 +18,9 @@ const CustomAlert = () => {
       <Dialog visible={visible} onDismiss={hideAlert}>
         <Dialog.Title>{title}</Dialog.Title>
         <Dialog.Content>
-          <Dialog.ScrollArea>{message}</Dialog.ScrollArea>
+          <Dialog.ScrollArea>
+            <Text>{message}</Text>
+          </Dialog.ScrollArea>
         </Dialog.Content>
         <Dialog.Actions>
           {onConfirm ? (

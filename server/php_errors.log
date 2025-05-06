@@ -1,4 +1,0 @@
-[17-Mar-2025 02:52:04 UTC] PHP Warning:  Module 'psr' already loaded in Unknown on line 0
-[17-Mar-2025 02:52:16 UTC] PHP Warning:  Module 'psr' already loaded in Unknown on line 0
-[11-Apr-2025 14:56:16 UTC] PHP Warning:  Module 'psr' already loaded in Unknown on line 0
-[11-Apr-2025 14:56:16 UTC] PHP Fatal error:  Composer detected issues in your platform: Your Composer dependencies require a PHP version ">= 8.1.0". You are running 7.4.33. in /Volumes/program/www/noteai/server/vendor/composer/platform_check.php on line 24
