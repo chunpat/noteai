@@ -24,7 +24,7 @@ class CategoryService {
     );
     console.log('Raw API response:', response);
     
-    const categories = response?.data?.data || [];
+    const categories = response || [];
     console.log('Extracted categories:', categories);
 
     // Validate and transform data

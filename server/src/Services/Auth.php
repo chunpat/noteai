@@ -112,7 +112,7 @@ class Auth
         }
 
         // 生成token
-        $token = $this->generateToken($user['id']);
+        $token = $this->generateToken(intval($user['id']));
 
         return [
             'token' => $token,

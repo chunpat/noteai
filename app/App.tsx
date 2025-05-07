@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useCallback } from 'react';
 import { StatusBar } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { Provider as PaperProvider, MD3DarkTheme } from 'react-native-paper';
 import { Provider as ReduxProvider } from 'react-redux';
 import { store } from './store';

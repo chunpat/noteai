@@ -57,8 +57,7 @@ const AddTransactionScreen = ({ navigation }: any) => {
       const transaction: TransactionRequest = {
         category_id: selectedCategory.id,
         amount: Number(amount),
-        type: type,
-        date: new Date().toISOString(),
+        transaction_date: new Date().toISOString(),
         note: note || undefined
       };
       

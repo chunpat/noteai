@@ -1,11 +1,11 @@
-import api, { authAPI } from './api';
 import type { ApiError } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEYS = {
+// 导出常量
+export const STORAGE_KEYS = {
   TOKEN: 'auth_token',
   USER: 'auth_user'
-};
+} as const;
 
 export interface LoginResponse {
   token: string;
@@ -68,9 +68,19 @@ class AuthService {
     }
   }
 
+  // 在实例化时传入API实例
+  private _api: any = null;
+  
+  setAPI(api: any) {
+    this._api = api;
+  }
+
   async sendVerificationCode(email: string): Promise<SendCodeResponse> {
     try {
-      await authAPI.sendCode(email);
+      if (!this._api) {
+        throw new Error('API instance not set');
+      }
+      await this._api.sendCode(email);
       return {
         success: true,
         message: '验证码已发送'
@@ -85,7 +95,10 @@ class AuthService {
   }
 
   async verifyCode(email: string, code: string): Promise<VerifyCodeResponse> {
-    const response = await authAPI.verifyCode(email, code);
+    if (!this._api) {
+      throw new Error('API instance not set');
+    }
+    const response = await this._api.verifyCode(email, code);
     console.log('verifyCode response:', response);
     // 存储认证信息
     await this.storeAuthData(response.token, response.user);
@@ -94,7 +107,10 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      await authAPI.logout();
+      if (!this._api) {
+        throw new Error('API instance not set');
+      }
+      await this._api.logout();
     } finally {
       // 无论登出API是否成功，都清除本地存储
       await this.clearAuthData();
@@ -102,7 +118,10 @@ class AuthService {
   }
 
   async getUserProfile(): Promise<any> {
-    return await authAPI.getProfile();
+    if (!this._api) {
+      throw new Error('API instance not set');
+    }
+    return await this._api.getProfile();
   }
 }
 
