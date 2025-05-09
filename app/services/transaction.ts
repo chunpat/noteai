@@ -51,8 +51,8 @@ class TransactionService {
         per_page: perPage
       };
 
-      const transactions = response?.data?.data || [];
-      const pagination = response?.data?.pagination || defaultPagination;
+      const transactions = response?.data || [];
+      const pagination = response?.pagination || defaultPagination;
 
       const mappedTransactions = transactions.map((transaction: any) => ({
         ...transaction,

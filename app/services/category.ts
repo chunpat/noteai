@@ -20,11 +20,11 @@ class CategoryService {
   async getCategories(): Promise<Category[]> {
     const response = await withLoading<any>(
       'getCategories',
-      (api) => api.get('/categories')
+      (api) => api.get('/categories?per_page=1000')
     );
     console.log('Raw API response:', response);
     
-    const categories = response || [];
+    const categories = response.data || [];
     console.log('Extracted categories:', categories);
 
     // Validate and transform data

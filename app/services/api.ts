@@ -143,16 +143,10 @@ export async function withLoading<T>(
     // 获取实际的数据
     let result: any = response.data;
     
-    // 如果存在嵌套的data字段，提取出来
-    if (result && typeof result === 'object' && 'data' in result) {
-      result = result.data;
-    }
-    
     // 如果需要验证且数据是数组，进行过滤
     if (validate && Array.isArray(result)) {
       result = result.filter(validate);
     }
-    
     return result as T;
   } catch (error: any) {
     if (error.code === 401) {
