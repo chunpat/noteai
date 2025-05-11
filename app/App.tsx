@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useCallback } from 'react';
 import { StatusBar } from 'react-native';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider, MD3DarkTheme } from 'react-native-paper';
 import { Provider as ReduxProvider } from 'react-redux';
 import { store } from './store';
@@ -38,7 +38,7 @@ const initialAuthContext: AuthContextType = {
 
 export const AuthContext = createContext<AuthContextType>(initialAuthContext);
 
-export default function App() {
+function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
@@ -140,3 +140,5 @@ export default function App() {
     </ReduxProvider>
   );
 }
+
+export default App;
